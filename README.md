@@ -295,6 +295,42 @@ Caddy сам получит и продлит TLS-сертификат от Let'
 
 **7. Проверка:** откройте `https://app.вашдомен.com` — должна открыться главная страница. Зарегистрируйтесь, проверьте `/learn`.
 
+### Без домена — сразу по IP
+
+Если домена пока нет, есть отдельный, более простой конфиг: [docker-compose.ip.yml](docker-compose.ip.yml) — без Caddy и HTTPS, фронтенд и бэкенд просто торчат наружу на портах 3000 и 8000 (как в локальном `docker-compose.yml`, только на публичном сервере). Ограничения: без замочка (`http://`, не `https://`) и вход через Google, скорее всего, не заработает — Google обычно не разрешает IP в Authorized JavaScript origins. Email/пароль работает как обычно.
+
+Пример ниже — с уже подставленным IP `45.130.166.187` (Kamatera, Tokyo, 2 vCPU/4 ГБ). Для другого сервера замените IP на свой везде.
+
+**1. Установите Docker на сервере** (как в шаге 2 выше, `curl -fsSL https://get.docker.com | sh` + `usermod`).
+
+**2. Откройте порты.** В панели Kamatera → Networks/Firewall для этого сервера разрешите **22** (SSH), **3000** и **8000** (TCP, от `0.0.0.0/0`). На самой VM:
+```bash
+sudo ufw allow 22/tcp && sudo ufw allow 3000/tcp && sudo ufw allow 8000/tcp && sudo ufw --force enable
+```
+
+**3. Скопируйте проект на сервер:**
+```bash
+rsync -avz --exclude node_modules --exclude .venv --exclude .next --exclude __pycache__ \
+  ./ root@45.130.166.187:/opt/poliglot/
+```
+(Kamatera обычно даёт доступ по паролю от root на Ubuntu-образах — если настроен SSH-ключ, добавьте `-e "ssh -i /path/to/key"`)
+
+**4. На сервере — заполните конфиги:**
+```bash
+cd /opt/poliglot
+cp .env.ip.example .env.ip                    # SERVER_IP уже = 45.130.166.187, впишите POSTGRES_PASSWORD
+cp backend/.env.ip.example backend/.env.ip     # впишите SECRET_KEY (см. команду в шаге 4 выше)
+```
+
+**5. Запустите:**
+```bash
+docker compose -f docker-compose.ip.yml --env-file .env.ip up --build -d
+```
+
+**6. Проверка:** откройте `http://45.130.166.187:3000` — должна открыться главная страница «Полиглот». API — на `http://45.130.166.187:8000/api/health/`.
+
+Домен можно подключить в любой момент позже — тогда просто переходите на `docker-compose.prod.yml` из шагов выше (тот же сервер, тот же Docker, ничего пересоздавать не нужно).
+
 ### Обновление после изменений в коде
 ```bash
 rsync -avz --exclude node_modules --exclude .venv --exclude .next --exclude __pycache__ \
@@ -306,4 +342,3 @@ ssh user@your-server-ip "cd /opt/poliglot && docker compose -f docker-compose.pr
 - Файрвол: `ufw allow 22,80,443/tcp && ufw enable` — остальные порты закрыть
 - Бэкапы Postgres: `docker compose -f docker-compose.prod.yml exec db pg_dump -U poliglot poliglot > backup.sql` (по крону)
 - Вместо `rsync` можно завести git-репозиторий (GitHub/GitLab) и деплоить через `git pull` на сервере — сейчас проект лежит вне отдельного git-репозитория (см. фазу «Деплой» выше)
-# poliglot

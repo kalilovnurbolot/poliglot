@@ -9,6 +9,7 @@ backend/db.sqlite3
 backend/.env
 backend/.env.docker
 backend/.env.prod
+backend/.env.ip
 backend/staticfiles/
 backend/media/
 
@@ -17,3 +18,4 @@ backend/media/
 # Docker Compose root env (build args for the frontend image)
 /.env
 /.env.prod
+/.env.ip
