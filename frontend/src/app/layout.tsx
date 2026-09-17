@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -17,6 +18,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Полиглот",
   description: "Учи языки свайпами: слова, грамматика и квизы для начинающих.",
+  appleWebApp: {
+    title: "Полиглот",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -30,6 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Navbar />
           <div className="flex flex-1 flex-col">{children}</div>
         </Providers>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
