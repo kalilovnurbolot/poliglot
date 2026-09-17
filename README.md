@@ -341,4 +341,23 @@ ssh user@your-server-ip "cd /opt/poliglot && docker compose -f docker-compose.pr
 ### Дополнительно (рекомендуется)
 - Файрвол: `ufw allow 22,80,443/tcp && ufw enable` — остальные порты закрыть
 - Бэкапы Postgres: `docker compose -f docker-compose.prod.yml exec db pg_dump -U poliglot poliglot > backup.sql` (по крону)
-- Вместо `rsync` можно завести git-репозиторий (GitHub/GitLab) и деплоить через `git pull` на сервере — сейчас проект лежит вне отдельного git-репозитория (см. фазу «Деплой» выше)
+- Вместо `rsync` можно деплоить через `git pull` — проект теперь в собственном репозитории: [github.com/kalilovnurbolot/poliglot](https://github.com/kalilovnurbolot/poliglot) (публичный, клонируется без авторизации)
+
+## Мобильная адаптация
+Проверка на 375px (iPhone) вскрыла несколько реальных багов вёрстки — все из-за длинного контента (см. «Расширенный словарь» и учебник ниже) или изначально не продуманных узких экранов:
+
+- [FlashCard.tsx](frontend/src/components/FlashCard.tsx) — подсказки «← не знаю / знаю →» были жёстко закреплены по центру карточки и накладывались на текст у длинных фраз («Could I have (your phone number), please?»). Подсказки вынесены за пределы карточки (сверху), плюс шрифт слова/перевода уменьшается адаптивно по длине текста
+- [Navbar.tsx](frontend/src/components/Navbar.tsx) — кнопки «Войти/Регистрация» для неавторизованных вылезали за край экрана на мобильном вместо переноса; переверстано в устойчивые два ряда (лого+переключатели сверху, навигация по разделам снизу)
+- [words/page.tsx](frontend/src/app/words/page.tsx) — форма добавления слова была жёстко в 2 колонки, из-за чего плейсхолдер «Транскрипция (необязательно)» обрезался на узком экране; теперь одна колонка на мобильном, две — от `sm:`
+- [grammar/[id]/page.tsx](frontend/src/app/grammar/%5Bid%5D/page.tsx) — markdown-таблицы обёрнуты в `overflow-x-auto` (защита от переполнения на случай широкой таблицы)
+
+Проверено на светлой и тёмной теме, viewport 375×812.
+
+## PWA (устанавливаемое приложение)
+- [app/manifest.ts](frontend/src/app/manifest.ts) — манифест (название, standalone-режим, цвета, иконки 192/512)
+- Иконки генерируются на этапе сборки через `next/og` (`ImageResponse`) — не нужны внешние файлы-картинки: [icon.tsx](frontend/src/app/icon.tsx) (favicon), [apple-icon.tsx](frontend/src/app/apple-icon.tsx) (180×180 для iOS), [icon-192.png/route.tsx](frontend/src/app/icon-192.png/route.tsx) и [icon-512.png/route.tsx](frontend/src/app/icon-512.png/route.tsx) (для манифеста) — везде буква «П» на индиго-фоне (`#4f46e5`, наш акцентный цвет)
+- `layout.tsx` — `appleWebApp` метаданные (заголовок, статус-бар) и `theme-color` отдельно для светлой/тёмной темы
+- [public/sw.js](frontend/public/sw.js) — простой service worker: network-first для страниц (чтобы онлайн всегда была свежая версия), cache-first для статики `_next/static` и картинок/шрифтов; **никогда не трогает чужой origin** — API живёт на другом порту/домене, поэтому его ответы физически не попадают в кеш. Регистрируется только в production через [ServiceWorkerRegistration.tsx](frontend/src/components/ServiceWorkerRegistration.tsx)
+- Старый дефолтный `favicon.ico` от `create-next-app` удалён — иконка теперь только своя
+
+**Важно:** и установка на главный экран, и service worker требуют HTTPS (браузеры делают исключение только для `localhost`). На текущем деплое по голому IP (`docker-compose.ip.yml`, `http://45.130.166.187:3000`) файлы манифеста/иконок отдаются корректно, но сама установка приложения и регистрация service worker в браузере, скорее всего, не заработают — это ограничение браузера (secure context), не баг. Заработает полностью, как только подключите домен + Caddy (`docker-compose.prod.yml`, автоматический HTTPS — см. «Деплой на реальный сервер» выше).
