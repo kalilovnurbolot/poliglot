@@ -93,7 +93,7 @@ export default function MyWordsPage() {
       <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Мои слова</h1>
 
       <form onSubmit={handleSubmit} className={`${cardClass} flex flex-col gap-3 p-4`}>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <input
             required
             placeholder="Слово"
@@ -109,7 +109,7 @@ export default function MyWordsPage() {
             className={inputClass}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <input
             placeholder="Транскрипция (необязательно)"
             value={form.transcription}

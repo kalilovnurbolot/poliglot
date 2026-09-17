@@ -70,9 +70,12 @@ export const FlashCard = forwardRef<FlashCardHandle, Props>(function FlashCard(
     setHint(null);
   };
 
+  const textLength = card.word.text.length;
+  const textSizeClass = textLength > 40 ? "text-lg" : textLength > 20 ? "text-2xl" : "text-3xl";
+
   return (
     <div className="relative flex h-96 w-72 items-center justify-center sm:h-[26rem] sm:w-80">
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-2 text-xs text-zinc-400">
+      <div className="pointer-events-none absolute inset-x-0 -top-6 flex justify-center gap-6 text-xs text-zinc-400">
         <span>← не знаю</span>
         <span>знаю →</span>
       </div>
@@ -113,7 +116,9 @@ export const FlashCard = forwardRef<FlashCardHandle, Props>(function FlashCard(
 
         {!flipped ? (
           <>
-            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-50">{card.word.text}</p>
+            <p className={`${textSizeClass} break-words font-semibold leading-snug text-zinc-900 dark:text-zinc-50`}>
+              {card.word.text}
+            </p>
             {card.word.transcription && (
               <p className="text-zinc-500">{card.word.transcription}</p>
             )}
@@ -124,7 +129,9 @@ export const FlashCard = forwardRef<FlashCardHandle, Props>(function FlashCard(
           </>
         ) : (
           <>
-            <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            <p
+              className={`${card.word.translation.length > 30 ? "text-lg" : "text-2xl"} break-words font-semibold leading-snug text-zinc-900 dark:text-zinc-50`}
+            >
               {card.word.translation}
             </p>
             {card.word.example_sentence && (

@@ -82,7 +82,18 @@ export default function GrammarRulePage() {
           </div>
 
           <div className="prose prose-zinc dark:prose-invert max-w-none prose-table:text-sm">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{rule.body}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children }) => (
+                  <div className="overflow-x-auto">
+                    <table>{children}</table>
+                  </div>
+                ),
+              }}
+            >
+              {rule.body}
+            </ReactMarkdown>
           </div>
 
           {(prev || next) && (
