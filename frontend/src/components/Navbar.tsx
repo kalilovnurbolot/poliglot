@@ -17,6 +17,9 @@ export function Navbar() {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
 
+  const isImmersive = pathname.startsWith("/learn/");
+  if (isImmersive) return null;
+
   return (
     <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-black/80">
       <div className="mx-auto max-w-4xl px-4 py-3">
