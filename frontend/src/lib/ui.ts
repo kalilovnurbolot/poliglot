@@ -24,7 +24,7 @@ export function pillClass(active: boolean, extra = "") {
 }
 
 export const cardClass =
-  "rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900";
+  "-mx-4 border-y border-zinc-200 bg-white shadow-none sm:mx-0 sm:rounded-2xl sm:border-x sm:shadow-sm dark:border-zinc-800 dark:bg-zinc-900";
 
 export const inputClass =
   "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";

@@ -51,14 +51,14 @@ export function Navbar() {
         </div>
 
         {user && (
-          <nav className="mt-2 flex flex-wrap gap-1 text-sm">
+          <nav className="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`rounded-lg px-2.5 py-1.5 font-medium transition-colors ${
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors ${
                     active
                       ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400"
                       : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"

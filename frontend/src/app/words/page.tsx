@@ -90,7 +90,7 @@ export default function MyWordsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Мои слова</h1>
+      <h1 className="hidden text-2xl font-semibold text-zinc-900 dark:text-zinc-50 sm:block">Мои слова</h1>
 
       <form onSubmit={handleSubmit} className={`${cardClass} flex flex-col gap-3 p-4`}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -74,7 +74,7 @@ export const FlashCard = forwardRef<FlashCardHandle, Props>(function FlashCard(
   const textSizeClass = textLength > 40 ? "text-lg" : textLength > 20 ? "text-2xl" : "text-3xl";
 
   return (
-    <div className="relative flex h-96 w-72 items-center justify-center sm:h-[26rem] sm:w-80">
+    <div className="relative flex h-96 w-full max-w-sm items-center justify-center sm:h-[26rem] sm:w-80">
       <div className="pointer-events-none absolute inset-x-0 -top-6 flex justify-center gap-6 text-xs text-zinc-400">
         <span>← не знаю</span>
         <span>знаю →</span>

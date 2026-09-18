@@ -124,7 +124,7 @@ export default function LearnPage() {
         <FlashCard key={queue[0].word.id} ref={cardRef} card={queue[0]} onSwipe={handleSwipe} />
       )}
 
-      <p className="max-w-xs text-center text-xs text-zinc-400">
+      <p className="hidden max-w-xs text-center text-xs text-zinc-400 sm:block">
         Свайп вправо — знаю, влево — не знаю, вверх — в избранное, вниз — пропустить.
         Можно и стрелками на клавиатуре.
       </p>
