@@ -56,7 +56,7 @@ cp backend/.env.docker.example backend/.env.docker   # SECRET_KEY, GOOGLE_OAUTH_
 docker compose up --build -d
 ```
 
-Сайт: http://localhost:8000. При старте контейнер сам накатывает миграции и собирает статику ([entrypoint.sh](backend/entrypoint.sh)); статика раздаётся через `whitenoise`.
+Сайт: http://localhost:8018. При старте контейнер сам накатывает миграции и собирает статику ([entrypoint.sh](backend/entrypoint.sh)); статика раздаётся через `whitenoise`.
 
 ```bash
 docker compose logs -f          # логи
