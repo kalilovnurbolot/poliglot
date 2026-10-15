@@ -329,8 +329,6 @@
       try {
         voiceSession = await poliglot.voice.start({
           url: config.url,
-          token: config.token,
-          grammar: null,
           onText: runVoiceCommand,
           onStop: (error) => {
             voiceSession = null;

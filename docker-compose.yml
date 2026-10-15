@@ -20,8 +20,8 @@ services:
       - ./backend/.env.docker
     environment:
       DATABASE_URL: postgres://poliglot:poliglot@db:5432/poliglot
-      # localhost ордуна контейнердин аты (voice) жазылды:
-      VOICE_URL: ws://voice:2700/
+      # Django reaches the voice service inside the Docker network; browsers never do.
+      VOICE_SERVICE_URL: ws://voice:2700/
     ports:
       # Сырттан түз кирүүнү жаап, Nginx (же localhost) үчүн гана ачык калтырылды:
       - "127.0.0.1:8018:8000"
@@ -29,7 +29,7 @@ services:
       db:
         condition: service_healthy
 
-  # Speech recognition for voice commands (Vosk).
+  # Speech recognition for voice commands (Vosk). Locally runs without VOICE_SECRET.
   voice:
     build: ./voice
     # ports: бөлүгү өчүрүлдү, ички тармакта гана иштейт

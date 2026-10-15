@@ -16,6 +16,7 @@ urlpatterns = [
     path('learn/', views.learn, name='learn'),
     path('learn/<str:level>/', views.learn_session, name='learn-session'),
     path('quiz/', views.quiz, name='quiz'),
+    path('voice/recognize/', views.voice_recognize, name='voice-recognize'),
     path('words/', views.words, name='words'),
     path('words/<int:pk>/delete/', views.word_delete, name='word-delete'),
 

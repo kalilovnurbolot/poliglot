@@ -83,12 +83,29 @@ class WebPagesTests(TestCase):
     def test_voice_control_only_when_configured(self):
         self.client.force_login(self.user)
         self.assertNotContains(self.client.get('/learn/A1/'), 'id="voice-config"')
-        with self.settings(VOICE_URL='/voice/', VOICE_SECRET='s3cret'):
-            res = self.client.get('/learn/A1/')
-        self.assertContains(res, 'id="voice-config"')
-        user_id, ts, signature = res.context['voice']['token'].split(':')
+        self.assertEqual(self.client.post('/voice/recognize/', b'\0\0', content_type='application/octet-stream').status_code, 404)
+        with self.settings(VOICE_SERVICE_URL='ws://voice:2700/'):
+            self.assertContains(self.client.get('/learn/A1/'), 'id="voice-config"')
+
+    @override_settings(VOICE_SERVICE_URL='ws://voice:2700/', VOICE_SECRET='s3cret')
+    @patch('apps.web.voice.connect')
+    def test_voice_recognize(self, connect):
+        ws = connect.return_value.__enter__.return_value
+        ws.recv.side_effect = ['{"text": "не"}', '{"text": "знаю", "final": true}']
+        post = lambda body: self.client.post('/voice/recognize/', body, content_type='application/octet-stream')
+
+        self.assertEqual(post(b'\0\0').status_code, 302)  # login required
+        self.client.force_login(self.user)
+        self.assertEqual(post(b'\0\0').json(), {'text': 'не знаю'})
+        user_id, ts, signature = connect.call_args.args[0].split('token=')[1].split(':')
         expected = hmac.new(b's3cret', f'{user_id}:{ts}'.encode(), hashlib.sha256).hexdigest()
         self.assertEqual((user_id, signature), (str(self.user.pk), expected))
+
+        self.assertEqual(post(b'').status_code, 400)
+        self.assertEqual(post(b'\0').status_code, 400)
+        self.assertEqual(post(b'\0' * 400_000).status_code, 400)
+        connect.side_effect = OSError
+        self.assertEqual(post(b'\0\0').status_code, 503)
 
     def test_learn_and_quiz_pages(self):
         self.client.force_login(self.user)

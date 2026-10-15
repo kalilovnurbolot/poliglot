@@ -95,10 +95,10 @@ SIMPLE_JWT = {
 
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 
-# Voice commands (the `voice` service). VOICE_URL is the WebSocket address the browser
-# connects to: absolute (ws://localhost:2700/) or a path behind Caddy (/voice/).
+# Voice commands: address of the `voice` service as Django reaches it (ws://voice:2700/
+# in Docker, ws://localhost:2700/ with runserver). Browsers never connect to it directly.
 # Empty = voice control is hidden. VOICE_SECRET must match the voice service's one.
-VOICE_URL = env('VOICE_URL', default='')
+VOICE_SERVICE_URL = env('VOICE_SERVICE_URL', default='')
 VOICE_SECRET = env('VOICE_SECRET', default='')
 
 # Accounts that are always admins (is_staff + is_superuser), whichever way they sign up.

@@ -24,7 +24,7 @@ from apps.vocabulary.serializers import ReviewCardSerializer
 from .context_processors import SESSION_KEY, current_language
 from .forms import GrammarRuleForm, LoginForm, RegisterForm, WordForm
 from .rule_render import extract_lede, extract_sections, render_rule
-from .voice import voice_config
+from .voice import MAX_BYTES, VoiceUnavailable, recognize, voice_config
 
 LEVELS = Level.values
 STATIC_DIR = Path(__file__).resolve().parent / 'static' / 'web'
@@ -138,8 +138,24 @@ def learn_session(request, level):
     cards = review_queue(request.user, current_language(request), None if level == 'all' else level)
     return render(request, 'web/learn_session.html', {
         'cards': ReviewCardSerializer(cards, many=True).data,
-        'voice': voice_config(request.user),
+        'voice': voice_config(),
     })
+
+
+@login_required
+@require_POST
+def voice_recognize(request):
+    """One recorded phrase (raw 16 kHz 16-bit PCM in the body) -> {"text": ...}."""
+    if voice_config() is None:
+        raise Http404
+    pcm = request.body
+    if not pcm or len(pcm) > MAX_BYTES or len(pcm) % 2:
+        return JsonResponse({'detail': 'Некорректная запись.'}, status=400)
+    try:
+        text = recognize(request.user, pcm)
+    except VoiceUnavailable:
+        return JsonResponse({'detail': 'Сервис распознавания речи недоступен.'}, status=503)
+    return JsonResponse({'text': text})
 
 
 @login_required

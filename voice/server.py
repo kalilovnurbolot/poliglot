@@ -1,12 +1,17 @@
 """Speech recognition service: a WebSocket server around a Vosk model.
 
+Its only client is Django (apps/web/voice.py), inside the Docker network; browsers
+send recorded phrases to Django over plain HTTPS.
+
 Protocol (one connection = one listening session):
-  1. The browser connects to ws://<host>/?token=<signed token from Django>.
+  1. The client connects to ws://<host>/?token=<signed token from Django>.
   2. Optionally it sends a JSON text message {"grammar": ["знаю", "не знаю", ...]};
      recognition is then limited to these phrases (much more accurate for commands).
      {"grammar": null} (or no message) means free speech, e.g. answers to check.
   3. Then it streams raw audio as binary messages: mono 16 kHz signed 16-bit PCM.
   4. After each pause in speech the server replies {"text": "<recognized phrase>"}.
+  5. {"eof": true} finishes the current phrase: the server replies with what is left
+     as {"text": "...", "final": true}.
 """
 
 import asyncio
@@ -88,6 +93,10 @@ def handler_for(model):
                 try:
                     config = json.loads(message)
                 except ValueError:
+                    continue
+                if config.get('eof'):
+                    text = confident_text(recognizer.FinalResult(), min_confidence) if recognizer else ''
+                    await ws.send(json.dumps({'text': text, 'final': True}, ensure_ascii=False))
                     continue
                 recognizer, min_confidence = make_recognizer(model, config.get('grammar'))
                 continue
