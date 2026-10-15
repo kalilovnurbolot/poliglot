@@ -1,0 +1,55 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10">
+  <a href="{{ back_url }}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">{{ back_label }}</a>
+  <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ title }}</h1>
+
+  <form method="post" class="flex flex-col gap-4" data-rule-editor data-preview-url="{% url 'web:grammar-preview' %}" data-submitting-label="Сохранение...">
+    {% csrf_token %}
+    <div class="card flex flex-col gap-3 p-4 sm:flex-row">
+      {{ form.title }}
+      {{ form.level }}
+    </div>
+
+    <div class="flex flex-wrap gap-2" data-snippets></div>
+
+    <div class="flex gap-2 lg:hidden">
+      <button type="button" data-tab="edit" class="pill pill-active">Текст</button>
+      <button type="button" data-tab="preview" class="pill">Превью</button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div data-pane="edit">{{ form.body }}</div>
+      <div data-pane="preview" class="card hidden min-h-[480px] p-5 lg:block" data-preview>{{ preview_html|safe }}</div>
+    </div>
+
+    <details class="text-sm text-zinc-600 dark:text-zinc-400">
+      <summary class="cursor-pointer select-none font-medium text-zinc-800 dark:text-zinc-200">Как размечать правило</summary>
+      <div class="mt-2 flex flex-col gap-1.5 leading-relaxed">
+        <p>Обычный Markdown: <code>## Раздел</code> (попадает в оглавление), <code>**жирный**</code>, списки, таблицы.</p>
+        <p>
+          Роли слов в формулах и примерах: <code>[s: …]</code> подлежащее, <code>[v: …]</code> глагол,
+          <code>[o: …]</code> дополнение, <code>[m: …]</code> время/место/уточнение, <code>[f: …]</code>
+          служебное слово. Текст вне скобок показывается как есть.
+        </p>
+        <p>
+          <code>formula</code> — строка на каждую форму, подпись слева через <code>+ | </code>. <code>example</code> —
+          строка, начинающаяся с <code>=</code>, это перевод. <code>note</code> — значок слева через <code>× | </code>.
+        </p>
+      </div>
+    </details>
+
+    {% include "web/partials/form_errors.html" %}
+
+    <button type="submit" class="btn btn-primary self-start">{{ submit_label }}</button>
+  </form>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'web/js/rule-editor.js' %}"></script>
+{% endblock %}

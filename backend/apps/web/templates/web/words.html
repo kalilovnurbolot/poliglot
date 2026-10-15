@@ -1,0 +1,49 @@
+{% extends "web/base.html" %}
+
+{% block title %}Мои слова · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-10">
+  <h1 class="hidden text-2xl font-semibold text-zinc-900 dark:text-zinc-50 sm:block">Мои слова</h1>
+
+  <form method="post" class="card flex flex-col gap-3 p-4" data-submitting-label="Добавляем...">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {{ form.text }}
+      {{ form.translation }}
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {{ form.transcription }}
+      {{ form.part_of_speech }}
+    </div>
+    {{ form.level }}
+    {{ form.example_sentence }}
+    {% include "web/partials/form_errors.html" %}
+    <button type="submit" class="btn btn-primary self-start">Добавить слово</button>
+  </form>
+
+  {% include "web/partials/level_switcher.html" with allow_all=True %}
+
+  {% if not words %}
+    <p class="text-zinc-500">У вас пока нет своих слов на этом уровне — добавьте выше.</p>
+  {% endif %}
+
+  <ul class="flex flex-col gap-2">
+    {% for word in words %}
+      <li class="card flex items-center justify-between gap-3 px-4 py-3">
+        <div class="min-w-0 break-words">
+          <span class="mr-2 rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-500 dark:border-zinc-700">{{ word.level }}</span>
+          <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ word.text }}</span>
+          <span class="text-zinc-500"> — {{ word.translation }}</span>
+          {% if word.transcription %}<span class="ml-2 text-sm text-zinc-400">{{ word.transcription }}</span>{% endif %}
+        </div>
+        <form method="post" action="{% url 'web:word-delete' word.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn btn-danger !px-0">Удалить</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</main>
+{% endblock %}

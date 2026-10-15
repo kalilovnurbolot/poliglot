@@ -21,22 +21,18 @@ services:
       - ./backend/.env.docker
     environment:
       DATABASE_URL: postgres://poliglot:poliglot@db:5432/poliglot
+      VOICE_URL: ws://localhost:2700/
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
 
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+  # Speech recognition for voice commands (Vosk). Locally runs without VOICE_SECRET.
+  voice:
+    build: ./voice
     ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+      - "2700:2700"
 
 volumes:
   poliglot_db_data:

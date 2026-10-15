@@ -1,0 +1,9 @@
+{% comment %}Level pills as links. Params: levels, level (current or None), allow_all, extra (query string to keep, e.g. "&mode=listening").{% endcomment %}
+<div class="flex flex-wrap gap-2">
+  {% if allow_all %}
+    <a href="?{{ extra }}" class="pill {% if not level %}pill-active{% endif %}">Все уровни</a>
+  {% endif %}
+  {% for l in levels %}
+    <a href="?level={{ l }}{{ extra }}" class="pill {% if level == l %}pill-active{% endif %}">{{ l }}</a>
+  {% endfor %}
+</div>

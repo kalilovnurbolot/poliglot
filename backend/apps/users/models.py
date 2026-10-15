@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
@@ -37,6 +38,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+
+    def save(self, *args, **kwargs):
+        if self.email and self.email.lower() in settings.ADMIN_EMAILS:
+            self.is_staff = True
+            self.is_superuser = True
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

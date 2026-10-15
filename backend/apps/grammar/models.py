@@ -8,7 +8,7 @@ class GrammarRule(models.Model):
     language = models.ForeignKey(Language, on_delete=models.CASCADE, related_name='grammar_rules')
     title = models.CharField(max_length=200)
     level = models.CharField(max_length=2, choices=Level.choices, default=Level.A1)
-    body = models.TextField(help_text='Markdown-форматированное объяснение с примерами.')
+    body = models.TextField(help_text='Markdown с блоками formula / example / note / legend / pills / cards.')
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

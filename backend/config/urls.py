@@ -24,4 +24,5 @@ urlpatterns = [
     path('api/', include('apps.grammar.urls')),
     path('api/auth/', include('apps.users.urls')),
     path('api/quiz/', include('apps.quizzes.urls')),
+    path('', include('apps.web.urls')),
 ]

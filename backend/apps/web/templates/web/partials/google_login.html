@@ -1,0 +1,32 @@
+{% if google_client_id %}
+  <div class="my-4 flex items-center gap-2 text-xs text-zinc-400">
+    <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800"></div>
+    или
+    <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800"></div>
+  </div>
+
+  <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="onGoogleCredential" data-auto_prompt="false"></div>
+  <div class="flex justify-center">
+    <div class="g_id_signin" data-type="standard" data-locale="ru"></div>
+  </div>
+  <p id="google-error" class="mt-3 hidden text-center text-sm text-red-600"></p>
+
+  <script>
+    function onGoogleCredential(response) {
+      const errorEl = document.getElementById("google-error");
+      errorEl.classList.add("hidden");
+      const next = new URLSearchParams(window.location.search).get("next");
+      poliglot.postJSON("{% url 'web:google-login' %}", { credential: response.credential, next })
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
+          if (res.ok) return (window.location.href = data?.redirect || "/");
+          throw new Error(data?.detail || "Ошибка входа через Google");
+        })
+        .catch((err) => {
+          errorEl.textContent = err.message;
+          errorEl.classList.remove("hidden");
+        });
+    }
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+{% endif %}

@@ -13,9 +13,7 @@ backend/.env.ip
 backend/staticfiles/
 backend/media/
 
-# Node / Next.js is covered by frontend/.gitignore
-
-# Docker Compose root env (build args for the frontend image)
+# Docker Compose root env
 /.env
 /.env.prod
 /.env.ip

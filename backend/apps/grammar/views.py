@@ -1,15 +1,23 @@
+from django.db.models import Max
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.viewsets import ModelViewSet
 
 from .models import GrammarProgress, GrammarRule
 from .serializers import GrammarRuleSerializer
 
 
-class GrammarRuleViewSet(ReadOnlyModelViewSet):
+class IsAdminOrReadOnly(BasePermission):
+    """Rules are shared by everyone; only staff can add, edit or delete them."""
+
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS or request.user.is_staff
+
+
+class GrammarRuleViewSet(ModelViewSet):
     serializer_class = GrammarRuleSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
     def get_queryset(self):
         queryset = GrammarRule.objects.all()
@@ -23,6 +31,14 @@ class GrammarRuleViewSet(ReadOnlyModelViewSet):
             queryset = queryset.filter(level=level)
 
         return queryset
+
+    def perform_create(self, serializer):
+        # New rules go to the end of their level instead of jumping ahead of the system ones.
+        last_order = GrammarRule.objects.filter(
+            language=serializer.validated_data['language'],
+            level=serializer.validated_data.get('level', 'A1'),
+        ).aggregate(Max('order'))['order__max'] or 0
+        serializer.save(order=last_order + 1)
 
     @action(detail=True, methods=['post'], url_path='toggle-learned', permission_classes=[IsAuthenticated])
     def toggle_learned(self, request, pk=None):
