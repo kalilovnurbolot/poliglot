@@ -5,8 +5,7 @@ services:
       POSTGRES_USER: poliglot
       POSTGRES_PASSWORD: poliglot
       POSTGRES_DB: poliglot
-    ports:
-      - "5431:5432"
+    # ports: бөлүгү өчүрүлдү, ички тармакта гана иштейт
     volumes:
       - poliglot_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,18 +20,19 @@ services:
       - ./backend/.env.docker
     environment:
       DATABASE_URL: postgres://poliglot:poliglot@db:5432/poliglot
-      VOICE_URL: ws://localhost:2700/
+      # localhost ордуна контейнердин аты (voice) жазылды:
+      VOICE_URL: ws://voice:2700/
     ports:
-      - "8018:8000"
+      # Сырттан түз кирүүнү жаап, Nginx (же localhost) үчүн гана ачык калтырылды:
+      - "127.0.0.1:8018:8000"
     depends_on:
       db:
         condition: service_healthy
 
-  # Speech recognition for voice commands (Vosk). Locally runs without VOICE_SECRET.
+  # Speech recognition for voice commands (Vosk).
   voice:
     build: ./voice
-    ports:
-      - "2700:2700"
+    # ports: бөлүгү өчүрүлдү, ички тармакта гана иштейт
 
 volumes:
   poliglot_db_data:
