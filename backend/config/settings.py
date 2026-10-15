@@ -44,12 +44,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
     'apps.core',
     'apps.users',
     'apps.vocabulary',
     'apps.grammar',
     'apps.quizzes',
+    'apps.web',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -57,7 +57,6 @@ AUTH_USER_MODEL = 'users.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -66,9 +65,17 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = env.list(
-    'CORS_ALLOWED_ORIGINS', default=['http://localhost:3000']
-)
+# Behind a reverse proxy (Caddy) that terminates HTTPS: trust its X-Forwarded-Proto
+# so CSRF origin checks and secure cookies see the real https scheme.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Django's default COOP (same-origin) cuts the link to the Google Sign-In popup,
+# leaving it stuck on accounts.google.com/gsi/transform.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+LOGIN_URL = 'web:login'
+LOGIN_REDIRECT_URL = 'web:home'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -88,6 +95,15 @@ SIMPLE_JWT = {
 
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 
+# Voice commands (the `voice` service). VOICE_URL is the WebSocket address the browser
+# connects to: absolute (ws://localhost:2700/) or a path behind Caddy (/voice/).
+# Empty = voice control is hidden. VOICE_SECRET must match the voice service's one.
+VOICE_URL = env('VOICE_URL', default='')
+VOICE_SECRET = env('VOICE_SECRET', default='')
+
+# Accounts that are always admins (is_staff + is_superuser), whichever way they sign up.
+ADMIN_EMAILS = [e.lower() for e in env.list('ADMIN_EMAILS', default=['kalilovnurbolot3@gmail.com'])]
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -100,6 +116,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.web.context_processors.site',
             ],
         },
     },
@@ -138,7 +155,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'UTC'
 

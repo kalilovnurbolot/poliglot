@@ -1,0 +1,64 @@
+{% extends "web/base.html" %}
+
+{% block content %}
+{% if user.is_authenticated %}
+  <main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+    <div>
+      <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+        С возвращением, {{ display_name }}! 👋
+      </h1>
+      <p class="mt-1 text-zinc-500">Чем займёмся сегодня?</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <a href="{% url 'web:learn' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="text-3xl" aria-hidden="true">🃏</span>
+        <div>
+          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Учить слова</p>
+          <p class="mt-1 text-sm text-zinc-500">Карточки со свайпами и интервальным повторением.</p>
+        </div>
+      </a>
+      <a href="{% url 'web:quiz' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="text-3xl" aria-hidden="true">🎯</span>
+        <div>
+          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Квиз</p>
+          <p class="mt-1 text-sm text-zinc-500">Проверь себя: выбор перевода или на слух.</p>
+        </div>
+      </a>
+      <a href="{% url 'web:grammar' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="text-3xl" aria-hidden="true">📘</span>
+        <div>
+          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Грамматика</p>
+          <p class="mt-1 text-sm text-zinc-500">Короткие правила для начинающих, по уровням.</p>
+        </div>
+      </a>
+      <a href="{% url 'web:words' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="text-3xl" aria-hidden="true">✏️</span>
+        <div>
+          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Мои слова</p>
+          <p class="mt-1 text-sm text-zinc-500">Добавляй свои слова — они сразу попадут в обучение.</p>
+        </div>
+      </a>
+    </div>
+  </main>
+{% else %}
+  <main class="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+    <div class="flex flex-col items-center gap-3">
+      <span class="text-5xl" aria-hidden="true">🌍</span>
+      <h1 class="text-4xl font-bold text-zinc-900 dark:text-zinc-50">Полиглот</h1>
+      <p class="max-w-sm text-zinc-500">
+        Учи английский и немецкий: слова свайпами, короткая грамматика и квизы — просто и без воды.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
+      <a href="{% url 'web:register' %}" class="btn btn-primary px-6 py-2.5">Начать бесплатно</a>
+      <a href="{% url 'web:login' %}" class="btn btn-secondary px-6 py-2.5">Войти</a>
+    </div>
+
+    <a href="{% url 'web:grammar' %}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">
+      Посмотреть грамматику без регистрации
+    </a>
+  </main>
+{% endif %}
+{% endblock %}

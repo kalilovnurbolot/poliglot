@@ -1,0 +1,66 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Учить слова · Полиглот{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<main class="relative flex min-h-dvh w-full flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
+  <a href="{% url 'web:learn' %}" aria-label="Закрыть"
+     class="absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900/5 text-lg text-zinc-500 hover:bg-zinc-900/10 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-50">✕</a>
+
+  <p id="learn-error" class="hidden text-sm text-red-600"></p>
+
+  <div id="learn-stage" class="relative flex h-96 w-full max-w-sm items-center justify-center sm:h-[26rem] sm:w-80">
+    <div class="pointer-events-none absolute inset-x-0 -top-6 flex justify-center gap-6 text-xs text-zinc-400">
+      <span>← не знаю</span>
+      <span>знаю →</span>
+    </div>
+
+    <div id="flashcard" class="relative flex h-full w-full cursor-grab touch-none flex-col items-center justify-center gap-3 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-lg select-none dark:border-zinc-800 dark:bg-zinc-900">
+      <span id="card-hint" class="absolute top-3 hidden rounded-full px-3 py-1 text-xs font-medium text-white"></span>
+      <div id="card-level" class="absolute top-3 right-3 rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-400 dark:border-zinc-700"></div>
+
+      <div id="card-front" class="flex flex-col items-center gap-3">
+        <p id="card-text" class="break-words font-semibold leading-snug text-zinc-900 dark:text-zinc-50"></p>
+        <p id="card-transcription" class="text-zinc-500"></p>
+        <p id="card-pos" class="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"></p>
+        <p class="mt-4 text-xs text-zinc-400">нажмите, чтобы увидеть перевод</p>
+      </div>
+      <div id="card-back" class="hidden flex-col items-center gap-3">
+        <p id="card-translation" class="break-words font-semibold leading-snug text-zinc-900 dark:text-zinc-50"></p>
+        <p id="card-example" class="text-sm text-zinc-500 italic"></p>
+      </div>
+    </div>
+
+    <div class="pointer-events-none absolute inset-x-0 -bottom-6 flex justify-center text-xs text-zinc-400">
+      ↑ избранное · ↓ пропустить
+    </div>
+  </div>
+
+  <div id="voice-panel" class="mt-6 hidden flex-col items-center gap-2 text-center">
+    <button type="button" id="voice-toggle" class="btn btn-secondary" aria-pressed="false">🎤 Голосовое управление</button>
+    <p id="voice-status" class="max-w-sm text-xs text-zinc-500" aria-live="polite"></p>
+  </div>
+
+  <div id="learn-done" class="card hidden flex-col items-center gap-4 p-8 text-center">
+    <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">На сегодня всё! 🎉</p>
+    <p class="text-zinc-500">
+      Знаю: <span data-stat="known">0</span> · Не знаю: <span data-stat="unknown">0</span> · Избранное: <span data-stat="favorited">0</span>
+    </p>
+    <div class="flex gap-3">
+      <a href="{{ request.path }}" class="btn btn-primary">Проверить ещё раз</a>
+      <a href="{% url 'web:learn' %}" class="btn btn-secondary">К выбору уровня</a>
+    </div>
+  </div>
+</main>
+{{ cards|json_script:"cards-data" }}
+{% if voice %}{{ voice|json_script:"voice-config" }}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>window.poliglotAnswerUrl = "{% url 'review-answer' %}"; window.poliglotLanguage = "{{ language }}";</script>
+{% if voice %}<script src="{% static 'web/js/voice.js' %}" data-worklet="{% static 'web/js/voice-worklet.js' %}"></script>{% endif %}
+<script src="{% static 'web/js/learn.js' %}"></script>
+{% endblock %}

@@ -1,6 +1,5 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -9,7 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from .models import Deck, UserWordProgress, Word
 from .permissions import IsOwnerOrReadOnly
-from .queries import visible_words
+from .queries import review_queue
 from .serializers import (
     DeckSerializer, ProgressSerializer, ReviewCardSerializer, WordSerializer,
 )
@@ -50,24 +49,7 @@ class ReviewQueueView(APIView):
         language = request.query_params.get('language', 'en')
         level = request.query_params.get('level')
         limit = min(int(request.query_params.get('limit', 20)), 50)
-        words = visible_words(request.user, language, level)
-
-        due_progress = list(
-            UserWordProgress.objects.filter(
-                user=request.user, word__in=words, next_review_at__lte=timezone.now(),
-            )
-            .select_related('word')
-            .order_by('next_review_at')[:limit]
-        )
-        cards = [{'word': p.word, 'progress': p} for p in due_progress]
-
-        remaining = limit - len(cards)
-        if remaining > 0:
-            new_words = (
-                words.exclude(progress_entries__user=request.user)
-                .order_by('text')[:remaining]
-            )
-            cards += [{'word': word, 'progress': None} for word in new_words]
+        cards = review_queue(request.user, language, level, limit)
 
         serializer = ReviewCardSerializer(cards, many=True)
         return Response(serializer.data)

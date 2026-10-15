@@ -1,0 +1,59 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Квиз · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-4 py-10">
+  <h1 class="hidden text-2xl font-semibold text-zinc-900 dark:text-zinc-50 sm:block">Квиз</h1>
+
+  {% with extra="&mode="|add:mode %}
+    {% include "web/partials/level_switcher.html" with allow_all=True %}
+  {% endwith %}
+
+  <div class="flex gap-2">
+    <button type="button" data-mode="translation" class="pill {% if mode == 'translation' %}pill-active{% endif %}">Обычный</button>
+    <button type="button" data-mode="listening" class="pill {% if mode == 'listening' %}pill-active{% endif %}">На слух</button>
+  </div>
+
+  {% if error %}
+    <div class="flex flex-col items-center gap-3 text-center">
+      <p class="text-sm text-red-600">{{ error }}</p>
+      <a href="{% url 'web:learn' %}" class="text-sm text-indigo-600 underline dark:text-indigo-400">Сначала выучить слова</a>
+    </div>
+  {% else %}
+    <div id="quiz-progress" class="flex w-full items-center justify-between text-sm text-zinc-500">
+      <span>Вопрос <span data-quiz="index">1</span> из {{ questions|length }}</span>
+      <div class="flex gap-3 font-medium">
+        <span class="text-emerald-600 dark:text-emerald-400">✅ <span data-quiz="correct">0</span></span>
+        <span class="text-red-600 dark:text-red-400">❌ <span data-quiz="wrong">0</span></span>
+      </div>
+    </div>
+
+    <div id="quiz-card" class="card flex w-full flex-col items-center gap-6 p-6">
+      <div id="quiz-word" class="text-center">
+        <p data-quiz="text" class="text-2xl font-semibold break-words text-zinc-900 dark:text-zinc-50"></p>
+        <p data-quiz="transcription" class="text-zinc-500"></p>
+      </div>
+      <button type="button" id="quiz-speak" aria-label="Прослушать слово"
+              class="hidden h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">🔊</button>
+      <div id="quiz-options" class="grid w-full grid-cols-1 gap-2"></div>
+    </div>
+
+    <div id="quiz-done" class="card hidden flex-col items-center gap-4 p-8 text-center">
+      <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Квиз завершён! 🎉</p>
+      <p class="text-zinc-500">Правильно: <span data-quiz="correct">0</span> · Неправильно: <span data-quiz="wrong">0</span></p>
+      <a id="quiz-restart" href="" class="btn btn-primary">Пройти ещё раз</a>
+    </div>
+
+    {{ questions|json_script:"quiz-data" }}
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.poliglotQuiz = { answerUrl: "{% url 'review-answer' %}", language: "{{ language }}", mode: "{{ mode }}" };
+</script>
+<script src="{% static 'web/js/quiz.js' %}"></script>
+{% endblock %}

@@ -9,6 +9,7 @@ class GrammarRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = GrammarRule
         fields = ['id', 'language', 'title', 'level', 'body', 'order', 'is_learned']
+        read_only_fields = ['id']
 
     def get_is_learned(self, obj):
         request = self.context.get('request')

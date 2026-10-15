@@ -1,0 +1,38 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru" class="h-full antialiased">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Полиглот{% endblock %}</title>
+  <meta name="description" content="Учи языки свайпами: слова, грамматика и квизы для начинающих.">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Полиглот">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="{% url 'web:manifest' %}">
+  <link rel="icon" href="{% static 'web/icons/icon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'web/icons/apple-icon.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..700&display=swap">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="flex min-h-full flex-col bg-zinc-50 dark:bg-black">
+  {% block navbar %}{% include "web/partials/navbar.html" %}{% endblock %}
+
+  {% if messages %}
+    <div class="mx-auto w-full max-w-4xl px-4 pt-4">
+      {% for message in messages %}
+        <p class="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="flex flex-1 flex-col">{% block content %}{% endblock %}</div>
+
+  <script src="{% static 'web/js/app.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
