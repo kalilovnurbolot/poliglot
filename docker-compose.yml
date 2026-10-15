@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: poliglot
       POSTGRES_DB: poliglot
     ports:
-      - "5432:5432"
+      - "5431:5432"
     volumes:
       - poliglot_db_data:/var/lib/postgresql/data
     healthcheck:
