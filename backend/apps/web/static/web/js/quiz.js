@@ -30,12 +30,12 @@
     speakButton.classList.toggle("hidden", !listening);
     speakButton.classList.toggle("flex", listening);
     document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("pill-active", b.dataset.mode === mode));
-    // Keep the mode in the URL so level links and «ещё раз» remember it.
+    // Keep the mode in the URL so «ещё раз» and the way back to the picker remember it.
     const url = new URL(location.href);
     url.searchParams.set("mode", mode);
     history.replaceState(null, "", url);
     document.getElementById("quiz-restart").href = url.pathname + url.search;
-    document.querySelectorAll("a.pill").forEach((a) => {
+    document.querySelectorAll("a[data-keep-mode]").forEach((a) => {
       const link = new URL(a.href);
       link.searchParams.set("mode", mode);
       a.href = link.pathname + link.search;

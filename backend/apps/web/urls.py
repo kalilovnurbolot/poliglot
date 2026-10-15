@@ -15,10 +15,12 @@ urlpatterns = [
 
     path('learn/', views.learn, name='learn'),
     path('learn/<str:level>/', views.learn_session, name='learn-session'),
+    path('learn/group/<int:pk>/', views.learn_deck, name='learn-deck'),
     path('quiz/', views.quiz, name='quiz'),
     path('voice/recognize/', views.voice_recognize, name='voice-recognize'),
     path('words/', views.words, name='words'),
     path('words/<int:pk>/delete/', views.word_delete, name='word-delete'),
+    path('words/groups/new/', views.group_create, name='group-create'),
 
     path('grammar/', views.grammar_list, name='grammar'),
     path('grammar/new/', views.grammar_create, name='grammar-create'),

@@ -1,0 +1,40 @@
+{% comment %}Where learn/quiz start from. Params: level_links [(label, url)], groups and topics (decks with .url and .word_count).{% endcomment %}
+<section class="flex flex-col gap-3">
+  <h2 class="text-sm font-medium text-zinc-500">По уровню</h2>
+  <div class="flex flex-wrap gap-2">
+    {% for label, url in level_links %}
+      <a href="{{ url }}" class="pill">{{ label }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="flex flex-col gap-3">
+  <h2 class="text-sm font-medium text-zinc-500">Мои группы</h2>
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {% for deck in groups %}
+      <a href="{% if deck.word_count %}{{ deck.url }}{% else %}{% url 'web:words' %}?deck={{ deck.pk }}{% endif %}"
+         class="card flex flex-col gap-1 p-4 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ deck.name }}</span>
+        <span class="text-xs text-zinc-500">{% if deck.word_count %}Слов: {{ deck.word_count }}{% else %}Пусто — добавить слова{% endif %}</span>
+      </a>
+    {% endfor %}
+    <a href="{% url 'web:words' %}#new-group"
+       class="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-zinc-300 p-4 text-sm font-medium text-zinc-500 transition-colors hover:border-indigo-400 hover:text-indigo-600 dark:border-zinc-700 dark:hover:border-indigo-500 dark:hover:text-indigo-400">
+      + Новая группа
+    </a>
+  </div>
+</section>
+
+{% if topics %}
+  <section class="flex flex-col gap-3">
+    <h2 class="text-sm font-medium text-zinc-500">Темы</h2>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {% for deck in topics %}
+        <a href="{{ deck.url }}" class="card flex flex-col gap-1 p-4 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+          <span class="font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ deck.name }}</span>
+          <span class="text-xs text-zinc-500">Слов: {{ deck.word_count }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

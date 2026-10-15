@@ -3,17 +3,12 @@
 {% block title %}Учить слова · Полиглот{% endblock %}
 
 {% block content %}
-<main class="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-6 px-4 py-10 text-center">
+<main class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-4 py-10">
   <div>
     <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Учить слова</h1>
-    <p class="mt-1 text-zinc-500">Выберите уровень, чтобы начать</p>
+    <p class="mt-1 text-zinc-500">Выберите уровень, свою группу или тему</p>
   </div>
 
-  <div class="flex flex-wrap justify-center gap-2">
-    <a href="{% url 'web:learn-session' 'all' %}" class="pill">Все уровни</a>
-    {% for l in levels %}
-      <a href="{% url 'web:learn-session' l %}" class="pill">{{ l }}</a>
-    {% endfor %}
-  </div>
+  {% include "web/partials/word_sources.html" %}
 </main>
 {% endblock %}

@@ -16,16 +16,33 @@
       {{ form.transcription }}
       {{ form.part_of_speech }}
     </div>
-    {{ form.level }}
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {{ form.level }}
+      {{ form.deck }}
+    </div>
     {{ form.example_sentence }}
     {% include "web/partials/form_errors.html" %}
     <button type="submit" class="btn btn-primary self-start">Добавить слово</button>
   </form>
 
-  {% include "web/partials/level_switcher.html" with allow_all=True %}
+  <section class="flex flex-col gap-3">
+    <div class="flex flex-wrap gap-2">
+      <a href="?" class="pill {% if not deck %}pill-active{% endif %}">Все группы</a>
+      {% for group in groups %}
+        <a href="?deck={{ group.pk }}" class="pill {% if deck.pk == group.pk %}pill-active{% endif %}">{{ group.name }} · {{ group.word_count }}</a>
+      {% endfor %}
+    </div>
+    <form id="new-group" method="post" action="{% url 'web:group-create' %}" class="flex gap-2">
+      {% csrf_token %}
+      <input name="name" maxlength="100" required placeholder="Новая группа, например «Работа»" class="input min-w-0 flex-1">
+      <button type="submit" class="btn btn-secondary shrink-0">Создать</button>
+    </form>
+  </section>
+
+  {% include "web/partials/level_switcher.html" with allow_all=True extra=deck_param %}
 
   {% if not words %}
-    <p class="text-zinc-500">У вас пока нет своих слов на этом уровне — добавьте выше.</p>
+    <p class="text-zinc-500">Здесь пока нет слов — добавьте выше.</p>
   {% endif %}
 
   <ul class="flex flex-col gap-2">
@@ -36,6 +53,9 @@
           <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ word.text }}</span>
           <span class="text-zinc-500"> — {{ word.translation }}</span>
           {% if word.transcription %}<span class="ml-2 text-sm text-zinc-400">{{ word.transcription }}</span>{% endif %}
+          {% if not deck %}
+            {% for group in word.decks.all %}<span class="ml-2 text-xs text-indigo-600 dark:text-indigo-400">{{ group.name }}</span>{% endfor %}
+          {% endif %}
         </div>
         <form method="post" action="{% url 'web:word-delete' word.pk %}">
           {% csrf_token %}

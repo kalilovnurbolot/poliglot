@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from apps.grammar.models import GrammarRule
 from apps.users.models import User
-from apps.vocabulary.models import Word
+from apps.vocabulary.models import Deck, Word
 
 INPUT = 'input'
 
@@ -53,6 +53,8 @@ class RegisterForm(forms.ModelForm):
 
 
 class WordForm(forms.ModelForm):
+    deck = forms.ModelChoiceField(queryset=Deck.objects.none(), empty_label=None, widget=forms.Select(attrs={'class': INPUT}))
+
     class Meta:
         model = Word
         fields = ['text', 'translation', 'transcription', 'part_of_speech', 'level', 'example_sentence']
@@ -76,8 +78,9 @@ class WordForm(forms.ModelForm):
         'other': 'другое',
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, decks, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['deck'].queryset = decks
         self.fields['part_of_speech'].choices = list(self.PART_OF_SPEECH_LABELS.items())
         self.fields['level'].choices = [(c, f'Уровень {c}') for c, _ in Word._meta.get_field('level').choices]
 

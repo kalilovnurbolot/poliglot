@@ -4,7 +4,7 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import Exists, Max, OuterRef
+from django.db.models import Count, Exists, Max, OuterRef
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
@@ -17,8 +17,8 @@ from apps.grammar.models import GrammarProgress, GrammarRule
 from apps.quizzes.questions import NotEnoughWords, build_questions
 from apps.quizzes.serializers import QuizQuestionSerializer
 from apps.users.google import GoogleAuthError, user_from_google_token
-from apps.vocabulary.models import Word
-from apps.vocabulary.queries import review_queue
+from apps.vocabulary.models import Deck, Word
+from apps.vocabulary.queries import review_queue, user_decks, visible_decks
 from apps.vocabulary.serializers import ReviewCardSerializer
 
 from .context_processors import SESSION_KEY, current_language
@@ -126,20 +126,56 @@ def logout_view(request):
 
 # ---------- Words: flashcards & quiz ----------
 
+def _word_sources(request, level_url, deck_url):
+    """What learn and quiz start from: a level, the user's own groups or a topic deck."""
+    language = get_object_or_404(Language, code=current_language(request))
+    groups = list(user_decks(request.user, language).annotate(word_count=Count('words')))
+    topics = list(
+        Deck.objects.filter(owner__isnull=True, language=language)
+        .annotate(word_count=Count('words')).filter(word_count__gt=0)
+    )
+    for deck in groups + topics:
+        deck.url = deck_url(deck.pk)
+    return {
+        'level_links': [('Все уровни', level_url('all'))] + [(l, level_url(l)) for l in LEVELS],
+        'groups': groups,
+        'topics': topics,
+    }
+
+
+def _visible_deck(request, pk):
+    return get_object_or_404(visible_decks(request.user).select_related('language'), pk=pk)
+
+
 @login_required
 def learn(request):
-    return render(request, 'web/learn.html', {'levels': LEVELS})
+    return render(request, 'web/learn.html', _word_sources(
+        request,
+        level_url=lambda level: reverse('web:learn-session', args=[level]),
+        deck_url=lambda pk: reverse('web:learn-deck', args=[pk]),
+    ))
+
+
+def _learn_session(request, cards):
+    return render(request, 'web/learn_session.html', {
+        'cards': ReviewCardSerializer(cards, many=True).data,
+        'voice': voice_config(),
+    })
 
 
 @login_required
 def learn_session(request, level):
     if level != 'all' and level not in LEVELS:
         raise Http404
-    cards = review_queue(request.user, current_language(request), None if level == 'all' else level)
-    return render(request, 'web/learn_session.html', {
-        'cards': ReviewCardSerializer(cards, many=True).data,
-        'voice': voice_config(),
-    })
+    return _learn_session(request, review_queue(
+        request.user, current_language(request), None if level == 'all' else level,
+    ))
+
+
+@login_required
+def learn_deck(request, pk):
+    deck = _visible_deck(request, pk)
+    return _learn_session(request, review_queue(request.user, deck.language.code, deck=deck))
 
 
 @login_required
@@ -160,19 +196,37 @@ def voice_recognize(request):
 
 @login_required
 def quiz(request):
-    level = _level_param(request)
     mode = 'listening' if request.GET.get('mode') == 'listening' else 'translation'
+    deck_id = request.GET.get('deck')
+    level = request.GET.get('level')
+    if deck_id is None and level != 'all' and level not in LEVELS:
+        mode_param = '&mode=listening' if mode == 'listening' else ''
+        return render(request, 'web/quiz_pick.html', _word_sources(
+            request,
+            level_url=lambda l: f'?level={l}{mode_param}',
+            deck_url=lambda pk: f'?deck={pk}{mode_param}',
+        ))
+
+    if deck_id is not None:
+        if not deck_id.isdigit():
+            raise Http404
+        deck = _visible_deck(request, deck_id)
+        language, level, source = deck.language.code, None, deck.name
+    else:
+        deck, language = None, current_language(request)
+        source = 'Все уровни' if level == 'all' else f'Уровень {level}'
+        level = None if level == 'all' else level
+
     error = None
     questions = []
     try:
         questions = QuizQuestionSerializer(
-            build_questions(request.user, current_language(request), level), many=True,
+            build_questions(request.user, language, level, deck=deck), many=True,
         ).data
     except NotEnoughWords as e:
         error = str(e)
     return render(request, 'web/quiz.html', {
-        'levels': LEVELS,
-        'level': level,
+        'source': source,
         'mode': mode,
         'questions': questions,
         'error': error,
@@ -183,24 +237,47 @@ def quiz(request):
 def words(request):
     language = get_object_or_404(Language, code=current_language(request))
     level = _level_param(request)
+    groups = user_decks(request.user, language)
+    deck_id = request.GET.get('deck')
+    deck = groups.filter(pk=deck_id).first() if deck_id and deck_id.isdigit() else None
 
-    form = WordForm(request.POST or None)
+    form = WordForm(request.POST or None, decks=groups, initial={'deck': deck or groups.first()})
     if request.method == 'POST' and form.is_valid():
         form.instance.owner = request.user
         form.instance.language = language
-        form.save()
+        word = form.save()
+        word.decks.set([form.cleaned_data['deck']])
         return redirect(request.get_full_path())
 
-    my_words = Word.objects.filter(owner=request.user, language=language).order_by('-created_at')
+    my_words = (
+        Word.objects.filter(owner=request.user, language=language)
+        .prefetch_related('decks').order_by('-created_at')
+    )
+    if deck:
+        my_words = my_words.filter(decks=deck)
     if level:
         my_words = my_words.filter(level=level)
 
     return render(request, 'web/words.html', {
         'form': form,
         'words': my_words,
+        'groups': groups.annotate(word_count=Count('words')),
+        'deck': deck,
+        'deck_param': f'&deck={deck.pk}' if deck else '',
         'levels': LEVELS,
         'level': level,
     })
+
+
+@login_required
+@require_POST
+def group_create(request):
+    language = get_object_or_404(Language, code=current_language(request))
+    name = request.POST.get('name', '').strip()[:100]
+    if not name:
+        return redirect('web:words')
+    deck, _ = Deck.objects.get_or_create(owner=request.user, language=language, name=name)
+    return redirect(f"{reverse('web:words')}?deck={deck.pk}")
 
 
 @login_required

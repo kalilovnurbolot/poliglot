@@ -17,10 +17,18 @@ class Deck(models.Model):
     )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    is_default = models.BooleanField(
+        default=False, help_text="The owner's «Мои слова» group, where new words go unless another is chosen.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['owner', 'language'], condition=models.Q(is_default=True), name='one_default_deck_per_language',
+            ),
+        ]
 
     def __str__(self):
         return self.name

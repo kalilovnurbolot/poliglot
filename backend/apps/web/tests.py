@@ -8,7 +8,7 @@ from django.urls import reverse
 from apps.core.models import Language
 from apps.grammar.models import GrammarProgress, GrammarRule
 from apps.users.models import User
-from apps.vocabulary.models import Word
+from apps.vocabulary.models import Deck, Word
 
 from .rule_render import extract_lede, extract_sections, render_rule
 
@@ -109,9 +109,39 @@ class WebPagesTests(TestCase):
 
     def test_learn_and_quiz_pages(self):
         self.client.force_login(self.user)
+        topic = Deck.objects.filter(language=self.en, owner=None, words__isnull=False).first()
+        for url in ['/learn/', '/quiz/']:
+            res = self.client.get(url)
+            self.assertContains(res, 'Мои слова')
+            self.assertContains(res, topic.name)
         self.assertContains(self.client.get('/learn/A1/'), 'id="cards-data"')
+        self.assertContains(self.client.get(f'/learn/group/{topic.pk}/'), 'id="cards-data"')
         self.assertEqual(self.client.get('/learn/Z9/').status_code, 404)
         self.assertContains(self.client.get('/quiz/?level=A1&mode=listening'), 'id="quiz-data"')
+        self.assertContains(self.client.get('/quiz/?level=all'), 'id="quiz-data"')
+        self.assertContains(self.client.get(f'/quiz/?deck={topic.pk}'), topic.name)
+        self.assertEqual(self.client.get('/quiz/?deck=x').status_code, 404)
+
+    def test_own_groups(self):
+        self.client.force_login(self.user)
+        self.client.post('/words/groups/new/', {'name': ' Работа '})
+        work = Deck.objects.get(owner=self.user, name='Работа')
+        res = self.client.post('/words/', {
+            'text': 'deadline', 'translation': 'срок', 'transcription': '', 'part_of_speech': 'noun',
+            'level': 'B1', 'example_sentence': '', 'deck': work.pk,
+        })
+        self.assertEqual(res.status_code, 302)
+        word = Word.objects.get(owner=self.user)
+        self.assertEqual(list(word.decks.all()), [work])
+
+        self.assertContains(self.client.get(f'/learn/group/{work.pk}/'), 'deadline')
+        # One word is enough: the other options come from the rest of the language.
+        self.assertContains(self.client.get(f'/quiz/?deck={work.pk}'), 'id="quiz-data"')
+
+        other = User.objects.create_user(email='other@example.com', password='x')
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(f'/learn/group/{work.pk}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/quiz/?deck={work.pk}').status_code, 404)
 
     def test_swipe_answer_via_session(self):
         self.client.force_login(self.user)
@@ -129,13 +159,16 @@ class WebPagesTests(TestCase):
 
     def test_add_and_delete_own_word(self):
         self.client.force_login(self.user)
+        self.client.get('/words/')  # creates the default «Мои слова» group
+        my_words = Deck.objects.get(owner=self.user, is_default=True)
         res = self.client.post('/words/', {
             'text': ' apple ', 'translation': 'яблоко', 'transcription': '', 'part_of_speech': 'noun',
-            'level': 'A1', 'example_sentence': '',
+            'level': 'A1', 'example_sentence': '', 'deck': my_words.pk,
         })
         self.assertEqual(res.status_code, 302)
         word = Word.objects.get(owner=self.user)
         self.assertEqual((word.text, word.language), ('apple', self.en))
+        self.assertEqual(list(word.decks.all()), [my_words])
 
         other = User.objects.create_user(email='other@example.com', password='x')
         self.client.force_login(other)

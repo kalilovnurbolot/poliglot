@@ -5,11 +5,10 @@
 
 {% block content %}
 <main class="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-4 py-10">
-  <h1 class="hidden text-2xl font-semibold text-zinc-900 dark:text-zinc-50 sm:block">Квиз</h1>
-
-  {% with extra="&mode="|add:mode %}
-    {% include "web/partials/level_switcher.html" with allow_all=True %}
-  {% endwith %}
+  <div class="flex w-full items-center justify-between gap-3">
+    <h1 class="min-w-0 text-xl font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ source }}</h1>
+    <a href="{% url 'web:quiz' %}" data-keep-mode class="shrink-0 text-sm text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">← Другие слова</a>
+  </div>
 
   <div class="flex gap-2">
     <button type="button" data-mode="translation" class="pill {% if mode == 'translation' %}pill-active{% endif %}">Обычный</button>
