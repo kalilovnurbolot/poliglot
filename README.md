@@ -262,8 +262,35 @@ ssh user@your-server-ip "cd /opt/poliglot && docker compose -f docker-compose.pr
 
 ### Дополнительно (рекомендуется)
 - Файрвол: `ufw allow 22,80,443/tcp && ufw enable` — остальные порты закрыть
-- Бэкапы Postgres: `docker compose -f docker-compose.prod.yml exec db pg_dump -U poliglot poliglot > backup.sql` (по крону)
+- Бэкапы Postgres — автоматические, см. [Бэкапы](#бэкапы)
 - Деплой через `git pull` — репозиторий: [github.com/kalilovnurbolot/poliglot](https://github.com/kalilovnurbolot/poliglot)
+
+## Бэкапы
+
+Сервис `backup` (есть в `docker-compose.yml` и `docker-compose.prod.yml`) делает сжатый дамп базы при каждом запуске и каждый день в 03:00 UTC в папку `backups/` рядом с проектом. Хранятся последние 14 дней (`BACKUP_KEEP_DAYS`), время — `BACKUP_HOUR`. Скрипт — [scripts/backup.sh](scripts/backup.sh).
+
+```bash
+docker compose up -d backup                          # включить (на сервере — вместе с остальными)
+docker compose logs backup                           # «backup: /backups/poliglot-….sql.gz (76K)»
+docker compose exec backup sh /backup.sh once        # внеочередной бэкап, например перед обновлением
+ls -lh backups/
+```
+
+Восстановление ничего не удаляет: текущая база переименовывается в `poliglot_before_<дата>`, к ней можно вернуться.
+
+```bash
+scripts/restore.sh backups/poliglot-2026-10-16_0300.sql.gz
+# с прод-конфигом:
+COMPOSE="docker compose -f docker-compose.prod.yml" scripts/restore.sh backups/…
+```
+
+Бэкапы на том же сервере не спасут, если пропадёт сам сервер, — периодически забирайте их к себе:
+
+```bash
+rsync -av user@server:/путь/к/poliglot/backups/ ~/poliglot-backups/
+```
+
+Ручной дамп — только с `-T`, иначе терминал добавит `\r` в каждую строку: `docker compose exec -T db pg_dump -U poliglot -d poliglot --no-owner > backup.sql`.
 
 ## PWA (устанавливаемое приложение)
 

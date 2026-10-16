@@ -11,6 +11,7 @@ backend/*.pyc
 backend/db.sqlite3
 # Database dumps hold users' emails and password hashes
 *.sql
+backups/
 backend/.env
 backend/.env.docker
 backend/.env.prod

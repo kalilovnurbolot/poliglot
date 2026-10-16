@@ -33,6 +33,26 @@ services:
       VOICE_SECRET: ${VOICE_SECRET:?set VOICE_SECRET in .env.prod}
     restart: unless-stopped
 
+
+  # Daily database backups into ./backups on the host (scripts/backup.sh, README «Бэкапы»).
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGUSER: poliglot
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: poliglot
+      BACKUP_HOUR: 3          # UTC
+      BACKUP_KEEP_DAYS: 14
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     ports:
