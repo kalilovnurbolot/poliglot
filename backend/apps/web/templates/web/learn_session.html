@@ -8,7 +8,7 @@
 {% block content %}
 <main class="relative flex min-h-dvh w-full flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
   <a href="{% url 'web:learn' %}" aria-label="Закрыть"
-     class="absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900/5 text-lg text-zinc-500 hover:bg-zinc-900/10 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-50">✕</a>
+     class="absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900/5 text-lg text-zinc-500 hover:bg-zinc-900/10 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-50">{% include "web/partials/icon.html" with name="x" class="h-5 w-5" %}</a>
 
   <p id="learn-error" class="hidden text-sm text-red-600"></p>
 
@@ -40,12 +40,12 @@
   </div>
 
   <div id="voice-panel" class="mt-6 hidden flex-col items-center gap-2 text-center">
-    <button type="button" id="voice-toggle" class="btn btn-secondary" aria-pressed="false">🎤 Голосовое управление</button>
+    <button type="button" id="voice-toggle" class="btn btn-secondary" aria-pressed="false">{% include "web/partials/icon.html" with name="mic" class="h-4 w-4" %} <span id="voice-label">Голосовое управление</span></button>
     <p id="voice-status" class="max-w-sm text-xs text-zinc-500" aria-live="polite"></p>
   </div>
 
   <div id="learn-done" class="card hidden flex-col items-center gap-4 p-8 text-center">
-    <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">На сегодня всё! 🎉</p>
+    <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">На сегодня всё!</p>
     <p class="text-zinc-500">
       Знаю: <span data-stat="known">0</span> · Не знаю: <span data-stat="unknown">0</span> · Избранное: <span data-stat="favorited">0</span>
     </p>

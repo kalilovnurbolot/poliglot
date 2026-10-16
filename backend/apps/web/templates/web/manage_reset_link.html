@@ -1,0 +1,29 @@
+{% extends "web/base.html" %}
+
+{% block title %}Ссылка сброса пароля · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-10">
+  {% include "web/partials/manage_tabs.html" %}
+
+  <div class="card flex flex-col gap-4 p-6">
+    <div>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Ссылка для сброса пароля</h2>
+      <p class="mt-1 break-all text-sm text-zinc-500">{{ target.email }}</p>
+    </div>
+
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <input id="reset-link" type="text" readonly value="{{ link }}" class="input min-w-0 flex-1 font-mono text-xs" onfocus="this.select()">
+      <button type="button" class="btn btn-primary shrink-0" data-copy="#reset-link">Скопировать</button>
+    </div>
+
+    <ul class="list-disc space-y-1 pl-5 text-sm text-zinc-500">
+      <li>Отправьте ссылку пользователю любым способом: в мессенджере или по почте.</li>
+      <li>Ссылка одноразовая и действует {{ days }} дн. Она перестанет работать, если пользователь войдёт на сайт до того, как ею воспользуется.</li>
+      <li>Не пересылайте её никому, кроме владельца аккаунта: по ней можно сменить его пароль.</li>
+    </ul>
+
+    <a href="{% url 'web:manage-users' %}" class="btn btn-secondary self-start">← К пользователям</a>
+  </div>
+</main>
+{% endblock %}

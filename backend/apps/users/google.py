@@ -33,4 +33,6 @@ def user_from_google_token(token):
     if created:
         user.set_unusable_password()
         user.save(update_fields=['password'])
+    if not user.is_active:
+        raise GoogleAuthError('Аккаунт заблокирован.')
     return user

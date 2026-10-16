@@ -1,0 +1,73 @@
+{% extends "web/base.html" %}
+
+{% block title %}Пользователи · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+  {% include "web/partials/manage_tabs.html" %}
+
+  <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <input type="search" name="q" value="{{ q }}" placeholder="Поиск по email или имени" class="input min-w-0 flex-1">
+    {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
+    <button type="submit" class="btn btn-secondary">Найти</button>
+  </form>
+
+  <div class="flex flex-wrap gap-2">
+    <a href="?{{ search_query }}" class="pill {% if not role %}pill-active{% endif %}">Все · {{ counts.all }}</a>
+    <a href="?{{ search_query }}&role=admins" class="pill {% if role == 'admins' %}pill-active{% endif %}">Администраторы · {{ counts.admins }}</a>
+    <a href="?{{ search_query }}&role=blocked" class="pill {% if role == 'blocked' %}pill-active{% endif %}">Заблокированные · {{ counts.blocked }}</a>
+  </div>
+
+  {% if not page.object_list %}
+    <p class="text-zinc-500">Никого не нашлось.</p>
+  {% endif %}
+
+  <ul class="flex flex-col gap-2">
+    {% for u in page %}
+      <li class="card flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <p class="flex flex-wrap items-center gap-2">
+            <span class="break-all font-medium text-zinc-900 dark:text-zinc-50">{{ u.email }}</span>
+            {% if u.is_owner %}
+              <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">Владелец</span>
+            {% elif u.is_staff %}
+              <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">Админ</span>
+            {% endif %}
+            {% if not u.is_active %}
+              <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">Заблокирован</span>
+            {% endif %}
+            {% if u.is_me %}<span class="text-xs text-zinc-400">это вы</span>{% endif %}
+          </p>
+          <p class="mt-1 text-sm text-zinc-500">
+            {% if u.first_name %}{{ u.first_name }} · {% endif %}
+            с <time data-local="date" datetime="{{ u.date_joined|date:'c' }}">{{ u.date_joined|date:"d.m.Y" }}</time>
+            · {% if u.last_login %}был <time data-local datetime="{{ u.last_login|date:'c' }}">{{ u.last_login|date:"d.m.Y H:i" }}</time>{% else %}ещё не входил{% endif %}
+            · <a href="{% url 'web:manage-log' %}?user={{ u.pk }}" class="text-indigo-600 hover:underline dark:text-indigo-400">журнал</a>
+          </p>
+        </div>
+
+        {% if not u.is_owner and not u.is_me %}
+          <div class="flex shrink-0 flex-wrap gap-2">
+            {% if u.is_staff %}
+              {% include "web/partials/manage_user_button.html" with action="revoke_admin" label="Снять админа" style="btn-secondary" confirm="Снять права администратора с "|add:u.email|add:"?" %}
+            {% else %}
+              {% include "web/partials/manage_user_button.html" with action="grant_admin" label="Сделать админом" style="btn-secondary" confirm="Сделать "|add:u.email|add:" администратором? Он сможет управлять пользователями и правилами." %}
+            {% endif %}
+            <form method="post" action="{% url 'web:manage-user-reset-link' u.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary !py-1.5">Ссылка сброса пароля</button>
+            </form>
+            {% if u.is_active %}
+              {% include "web/partials/manage_user_button.html" with action="block" label="Заблокировать" style="btn-danger" confirm="Заблокировать "|add:u.email|add:"? Он больше не сможет войти." %}
+            {% else %}
+              {% include "web/partials/manage_user_button.html" with action="unblock" label="Разблокировать" style="btn-secondary" confirm="" %}
+            {% endif %}
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% include "web/partials/pagination.html" with query=page_query %}
+</main>
+{% endblock %}

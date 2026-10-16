@@ -312,7 +312,7 @@
     micButton.classList.toggle("btn-primary", listening);
     micButton.classList.toggle("btn-secondary", !listening);
     micButton.setAttribute("aria-pressed", String(listening));
-    micButton.textContent = listening ? "🎙 Слушаю… (выключить)" : "🎤 Голосовое управление";
+    $("voice-label").textContent = listening ? "Слушаю… (выключить)" : "Голосовое управление";
   }
 
   if (voiceConfigEl && poliglot.voice?.supported()) {

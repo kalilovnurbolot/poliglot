@@ -1,16 +1,18 @@
 from django.urls import path
 
-from . import views
+from . import admin_views, views
 
 app_name = 'web'
 
 urlpatterns = [
     path('', views.home, name='home'),
     path('language/', views.set_language, name='set-language'),
+    path('appearance/', views.appearance, name='appearance'),
 
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
+    path('reset/<str:uidb64>/<str:token>/', views.password_reset, name='password-reset'),
     path('auth/google/', views.google_login, name='google-login'),
 
     path('learn/', views.learn, name='learn'),
@@ -29,6 +31,11 @@ urlpatterns = [
     path('grammar/<int:pk>/edit/', views.grammar_edit, name='grammar-edit'),
     path('grammar/<int:pk>/delete/', views.grammar_delete, name='grammar-delete'),
     path('grammar/<int:pk>/toggle-learned/', views.grammar_toggle_learned, name='grammar-toggle-learned'),
+
+    path('manage/users/', admin_views.users, name='manage-users'),
+    path('manage/users/<int:pk>/reset-link/', admin_views.user_reset_link, name='manage-user-reset-link'),
+    path('manage/users/<int:pk>/<str:action>/', admin_views.user_action, name='manage-user-action'),
+    path('manage/log/', admin_views.activity, name='manage-log'),
 
     path('manifest.webmanifest', views.manifest, name='manifest'),
     path('sw.js', views.service_worker, name='service-worker'),

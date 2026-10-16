@@ -24,8 +24,8 @@
     <div id="quiz-progress" class="flex w-full items-center justify-between text-sm text-zinc-500">
       <span>Вопрос <span data-quiz="index">1</span> из {{ questions|length }}</span>
       <div class="flex gap-3 font-medium">
-        <span class="text-emerald-600 dark:text-emerald-400">✅ <span data-quiz="correct">0</span></span>
-        <span class="text-red-600 dark:text-red-400">❌ <span data-quiz="wrong">0</span></span>
+        <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title="Правильно">{% include "web/partials/icon.html" with name="check" class="h-4 w-4" %}<span data-quiz="correct">0</span></span>
+        <span class="inline-flex items-center gap-1 text-red-600 dark:text-red-400" title="Неправильно">{% include "web/partials/icon.html" with name="x" class="h-4 w-4" %}<span data-quiz="wrong">0</span></span>
       </div>
     </div>
 
@@ -35,12 +35,12 @@
         <p data-quiz="transcription" class="text-zinc-500"></p>
       </div>
       <button type="button" id="quiz-speak" aria-label="Прослушать слово"
-              class="hidden h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">🔊</button>
+              class="hidden h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">{% include "web/partials/icon.html" with name="volume" class="h-7 w-7" %}</button>
       <div id="quiz-options" class="grid w-full grid-cols-1 gap-2"></div>
     </div>
 
     <div id="quiz-done" class="card hidden flex-col items-center gap-4 p-8 text-center">
-      <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Квиз завершён! 🎉</p>
+      <p class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Квиз завершён!</p>
       <p class="text-zinc-500">Правильно: <span data-quiz="correct">0</span> · Неправильно: <span data-quiz="wrong">0</span></p>
       <a id="quiz-restart" href="" class="btn btn-primary">Пройти ещё раз</a>
     </div>

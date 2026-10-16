@@ -18,7 +18,11 @@
 
     {% include "web/partials/google_login.html" %}
 
-    <p class="mt-6 text-center text-sm text-zinc-500">
+    <p class="mt-4 text-center text-xs text-zinc-400">
+      Забыли пароль? Напишите администратору — он пришлёт ссылку для сброса.
+    </p>
+
+    <p class="mt-4 text-center text-sm text-zinc-500">
       Нет аккаунта?
       <a href="{% url 'web:register' %}" class="font-medium text-indigo-600 underline dark:text-indigo-400">Зарегистрироваться</a>
     </p>

@@ -6,6 +6,19 @@
 @source "../static/web/js";
 @source "../forms.py";
 
+/* dark: follows the theme picked in the navbar (data-theme on <html>, see theme.js);
+   without a choice it follows the system setting. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
   --background: #fafafa;
   --foreground: #18181b;
@@ -30,6 +43,55 @@
 :root[data-theme="dark"] {
   --background: #09090b;
   --foreground: #f4f4f5;
+}
+
+/* ---------- Palettes (theme.js) ----------
+   All accent utilities (indigo-*) are recomputed from one --accent color, and with
+   data-tint the neutrals (zinc-*) and the page background take its hue too. So any
+   color the learner picks becomes a full palette; templates keep using indigo/zinc. */
+:root {
+  --accent: #4f46e5;
+}
+
+@supports (color: oklch(from red l c h)) {
+  :root[data-accent] {
+    --color-indigo-50: oklch(from var(--accent) 0.962 calc(c * 0.07) h);
+    --color-indigo-100: oklch(from var(--accent) 0.93 calc(c * 0.13) h);
+    --color-indigo-200: oklch(from var(--accent) 0.87 calc(c * 0.25) h);
+    --color-indigo-300: oklch(from var(--accent) 0.785 calc(c * 0.44) h);
+    --color-indigo-400: oklch(from var(--accent) 0.673 calc(c * 0.69) h);
+    --color-indigo-500: oklch(from var(--accent) 0.585 calc(c * 0.89) h);
+    --color-indigo-600: oklch(from var(--accent) 0.511 c h);
+    --color-indigo-700: oklch(from var(--accent) 0.457 calc(c * 0.92) h);
+    --color-indigo-800: oklch(from var(--accent) 0.398 calc(c * 0.74) h);
+    --color-indigo-900: oklch(from var(--accent) 0.359 calc(c * 0.55) h);
+    --color-indigo-950: oklch(from var(--accent) 0.257 calc(c * 0.34) h);
+  }
+
+  :root[data-tint] {
+    --color-zinc-50: oklch(from var(--accent) 0.985 0.012 h);
+    --color-zinc-100: oklch(from var(--accent) 0.967 0.016 h);
+    --color-zinc-200: oklch(from var(--accent) 0.92 0.024 h);
+    --color-zinc-300: oklch(from var(--accent) 0.871 0.032 h);
+    --color-zinc-400: oklch(from var(--accent) 0.705 0.04 h);
+    --color-zinc-500: oklch(from var(--accent) 0.552 0.045 h);
+    --color-zinc-600: oklch(from var(--accent) 0.442 0.045 h);
+    --color-zinc-700: oklch(from var(--accent) 0.37 0.04 h);
+    --color-zinc-800: oklch(from var(--accent) 0.274 0.032 h);
+    --color-zinc-900: oklch(from var(--accent) 0.21 0.026 h);
+    --color-zinc-950: oklch(from var(--accent) 0.141 0.02 h);
+    --background: oklch(from var(--accent) 0.965 0.025 h);
+  }
+
+  :root[data-tint][data-theme="dark"] {
+    --background: oklch(from var(--accent) 0.17 0.03 h);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root[data-tint]:not([data-theme="light"]) {
+      --background: oklch(from var(--accent) 0.17 0.03 h);
+    }
+  }
 }
 
 body {

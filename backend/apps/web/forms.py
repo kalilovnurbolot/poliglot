@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import authenticate
+from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 
 from apps.grammar.models import GrammarRule
@@ -24,8 +25,20 @@ class LoginForm(forms.Form):
             return cleaned
         self.user = authenticate(self.request, email=cleaned['email'], password=cleaned['password'])
         if self.user is None:
+            blocked = User.objects.filter(email__iexact=cleaned['email'], is_active=False).first()
+            if blocked and blocked.check_password(cleaned['password']):
+                raise forms.ValidationError('Аккаунт заблокирован. Обратитесь к администратору.')
             raise forms.ValidationError('Неверный email или пароль')
         return cleaned
+
+
+class NewPasswordForm(SetPasswordForm):
+    """Setting a password from a reset link, styled like the other forms."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['new_password1'].widget.attrs.update({'class': INPUT, 'placeholder': 'Новый пароль', 'autofocus': True})
+        self.fields['new_password2'].widget.attrs.update({'class': INPUT, 'placeholder': 'Повторите пароль'})
 
 
 class RegisterForm(forms.ModelForm):

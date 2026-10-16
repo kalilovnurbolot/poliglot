@@ -48,3 +48,31 @@ document.addEventListener("submit", (e) => {
 if ("serviceWorker" in navigator && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
+
+// <time data-local datetime="..."> is rendered in UTC by the server; show it in the
+// viewer's own time zone. data-local="date" shows the date only.
+document.querySelectorAll("time[data-local]").forEach((el) => {
+  const date = new Date(el.getAttribute("datetime"));
+  if (isNaN(date)) return;
+  const options = el.dataset.local === "date"
+    ? { day: "2-digit", month: "2-digit", year: "numeric" }
+    : { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" };
+  el.textContent = date.toLocaleString("ru-RU", options);
+  el.title = el.getAttribute("datetime");
+});
+
+// <button data-copy="#input-id"> copies that field's value and briefly confirms it.
+document.addEventListener("click", async (e) => {
+  const button = e.target.closest("[data-copy]");
+  if (!button) return;
+  const field = document.querySelector(button.dataset.copy);
+  try {
+    await navigator.clipboard.writeText(field.value);
+  } catch {
+    field.select(); // clipboard blocked (e.g. plain http): leave it selected to copy by hand
+    return;
+  }
+  const label = button.textContent;
+  button.textContent = "Скопировано ✓";
+  setTimeout(() => (button.textContent = label), 1500);
+});

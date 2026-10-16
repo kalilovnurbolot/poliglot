@@ -9,6 +9,8 @@ backend/.venv/
 backend/**/__pycache__/
 backend/*.pyc
 backend/db.sqlite3
+# Database dumps hold users' emails and password hashes
+*.sql
 backend/.env
 backend/.env.docker
 backend/.env.prod

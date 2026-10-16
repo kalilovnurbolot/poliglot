@@ -1,5 +1,6 @@
 {% load static %}<!DOCTYPE html>
-<html lang="ru" class="h-full antialiased">
+{# A signed-in user's saved look is applied right here, so no page ever flashes another theme. #}
+<html lang="ru" class="h-full antialiased"{% if appearance %}{% if appearance.mode != "system" %} data-theme="{{ appearance.mode }}"{% endif %}{% if appearance.accent %} data-accent style="--accent: {{ appearance.accent }}"{% endif %}{% if appearance.tint %} data-tint{% endif %}{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,6 +8,8 @@
   <meta name="description" content="Учи языки свайпами: слова, грамматика и квизы для начинающих.">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">
+  {% if appearance %}{{ appearance|json_script:"appearance-data" }}{% endif %}
+  <script src="{% static 'web/js/theme.js' %}"></script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Полиглот">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">

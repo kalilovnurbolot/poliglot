@@ -1,0 +1,53 @@
+{% extends "web/base.html" %}
+
+{% block title %}Журнал действий · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+  {% include "web/partials/manage_tabs.html" %}
+
+  {% if filtered_user %}
+    <p class="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+      Действия пользователя <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ filtered_user.email }}</span>
+      <a href="?group={{ group }}" class="text-indigo-600 hover:underline dark:text-indigo-400">показать всех</a>
+    </p>
+  {% else %}
+    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <input type="search" name="q" value="{{ q }}" placeholder="Поиск по email или объекту (слово, правило)" class="input min-w-0 flex-1">
+      {% if group %}<input type="hidden" name="group" value="{{ group }}">{% endif %}
+      <button type="submit" class="btn btn-secondary">Найти</button>
+    </form>
+  {% endif %}
+
+  <div class="flex flex-wrap gap-2">
+    <a href="?{{ filter_query }}" class="pill {% if not group %}pill-active{% endif %}">Все</a>
+    {% for key, label in groups %}
+      <a href="?{{ filter_query }}&group={{ key }}" class="pill {% if group == key %}pill-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  {% if not page.object_list %}
+    <p class="text-zinc-500">Записей нет.</p>
+  {% endif %}
+
+  <ul class="card flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+    {% for e in page %}
+      <li class="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-baseline sm:gap-4">
+        <time data-local datetime="{{ e.created_at|date:'c' }}" class="shrink-0 font-mono text-xs text-zinc-400 sm:w-32">{{ e.created_at|date:"d.m.Y H:i" }}</time>
+        <div class="min-w-0 flex-1 text-sm">
+          {% if e.user_id %}
+            <a href="?user={{ e.user_id }}" class="break-all font-medium text-zinc-900 hover:underline dark:text-zinc-50">{{ e.user_email }}</a>
+          {% else %}
+            <span class="break-all font-medium text-zinc-500">{{ e.user_email|default:"неизвестный" }}</span>
+          {% endif %}
+          <span class="{% if e.group == 'failed' %}text-red-600 dark:text-red-400{% elif e.group == 'admin' %}text-amber-700 dark:text-amber-400{% elif e.group == 'content' %}text-indigo-600 dark:text-indigo-400{% else %}text-zinc-500{% endif %}">{{ e.get_action_display|lower }}</span>
+          {% if e.target %}<span class="break-words text-zinc-700 dark:text-zinc-300">«{{ e.target }}»</span>{% endif %}
+        </div>
+        {% if e.ip %}<span class="shrink-0 font-mono text-xs text-zinc-400">{{ e.ip }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% include "web/partials/pagination.html" with query=page_query %}
+</main>
+{% endblock %}

@@ -4,25 +4,29 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.tokens import default_token_generator
 from django.db.models import Count, Exists, Max, OuterRef
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
 from django.views.decorators.http import require_POST
 
 from apps.core.models import Language, Level
 from apps.grammar.models import GrammarProgress, GrammarRule
 from apps.quizzes.questions import NotEnoughWords, build_questions
 from apps.quizzes.serializers import QuizQuestionSerializer
+from apps.users.activity import Action, log_activity
 from apps.users.google import GoogleAuthError, user_from_google_token
+from apps.users.models import User
 from apps.vocabulary.models import Deck, Word
 from apps.vocabulary.queries import review_queue, user_decks, visible_decks
 from apps.vocabulary.serializers import ReviewCardSerializer
 
+from .appearance import clean_appearance
 from .context_processors import SESSION_KEY, current_language
-from .forms import GrammarRuleForm, LoginForm, RegisterForm, WordForm
+from .forms import GrammarRuleForm, LoginForm, NewPasswordForm, RegisterForm, WordForm
 from .rule_render import extract_lede, extract_sections, render_rule
 from .voice import MAX_BYTES, VoiceUnavailable, recognize, voice_config
 
@@ -83,6 +87,26 @@ def set_language(request):
     return redirect(_safe_next(request))
 
 
+@login_required
+@require_POST
+def appearance(request):
+    """Save the look picked in the theme panel and/or that its hint was seen (theme.js)."""
+    try:
+        data = json.loads(request.body)
+        fields = ['appearance_hint_seen']
+        if 'mode' in data:
+            request.user.appearance = clean_appearance(data)
+            fields.append('appearance')
+        elif not data.get('hint_seen'):
+            raise ValueError
+    except (ValueError, AttributeError):
+        return JsonResponse({'detail': 'Некорректные данные.'}, status=400)
+    # Changing the look also means the learner has found the panel.
+    request.user.appearance_hint_seen = True
+    request.user.save(update_fields=fields)
+    return HttpResponse(status=204)
+
+
 # ---------- Auth ----------
 
 def login_view(request):
@@ -97,6 +121,7 @@ def register_view(request):
     form = RegisterForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         user = form.save()
+        log_activity(request, Action.REGISTER, user=user)
         login(request, user, backend='django.contrib.auth.backends.ModelBackend')
         return redirect('web:home')
     return render(request, 'web/register.html', {'form': form})
@@ -114,8 +139,28 @@ def google_login(request):
         return JsonResponse({'detail': 'Некорректный запрос.'}, status=400)
     except GoogleAuthError as e:
         return JsonResponse({'detail': str(e)}, status=401)
+    request.login_method = 'google'  # for the activity log (apps/users/activity.py)
     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
     return JsonResponse({'ok': True, 'redirect': _safe_next(request, target=next_url)})
+
+
+def password_reset(request, uidb64, token):
+    """Set a new password from a link an admin created (admin_views.user_reset_link).
+    The token stops working once used, after the user signs in, or when it expires."""
+    try:
+        user = User.objects.get(pk=urlsafe_base64_decode(uidb64).decode())
+    except (ValueError, User.DoesNotExist):
+        user = None
+    if user is None or not user.is_active or not default_token_generator.check_token(user, token):
+        return render(request, 'web/password_reset.html', {'invalid': True}, status=400)
+
+    form = NewPasswordForm(user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        log_activity(request, Action.PASSWORD_RESET, user=user)
+        messages.success(request, 'Пароль изменён. Войдите с новым паролем.')
+        return redirect('web:login')
+    return render(request, 'web/password_reset.html', {'form': form, 'email': user.email})
 
 
 @require_POST
@@ -247,6 +292,7 @@ def words(request):
         form.instance.language = language
         word = form.save()
         word.decks.set([form.cleaned_data['deck']])
+        log_activity(request, Action.WORD_ADD, f'{word.text} — {word.translation}')
         return redirect(request.get_full_path())
 
     my_words = (
@@ -276,7 +322,9 @@ def group_create(request):
     name = request.POST.get('name', '').strip()[:100]
     if not name:
         return redirect('web:words')
-    deck, _ = Deck.objects.get_or_create(owner=request.user, language=language, name=name)
+    deck, created = Deck.objects.get_or_create(owner=request.user, language=language, name=name)
+    if created:
+        log_activity(request, Action.DECK_CREATE, name)
     return redirect(f"{reverse('web:words')}?deck={deck.pk}")
 
 
@@ -285,6 +333,7 @@ def group_create(request):
 def word_delete(request, pk):
     word = get_object_or_404(Word, pk=pk, owner=request.user)
     word.delete()
+    log_activity(request, Action.WORD_DELETE, f'{word.text} — {word.translation}')
     return redirect(_safe_next(request, reverse('web:words')))
 
 
@@ -338,6 +387,7 @@ def grammar_toggle_learned(request, pk):
     progress, created = GrammarProgress.objects.get_or_create(user=request.user, rule=rule)
     if not created:
         progress.delete()
+    log_activity(request, Action.GRAMMAR_LEARNED if created else Action.GRAMMAR_UNLEARNED, rule.title)
     return redirect('web:grammar-detail', pk=pk)
 
 
@@ -359,6 +409,7 @@ def grammar_create(request):
         form.instance.language = language
         form.instance.order = last_order + 1
         rule = form.save()
+        log_activity(request, Action.GRAMMAR_CREATE, rule.title)
         return redirect('web:grammar-detail', pk=rule.pk)
     return render(request, 'web/grammar_form.html', {
         'form': form,
@@ -378,6 +429,7 @@ def grammar_edit(request, pk):
     form = GrammarRuleForm(request.POST or None, instance=rule)
     if request.method == 'POST' and form.is_valid():
         form.save()
+        log_activity(request, Action.GRAMMAR_EDIT, rule.title)
         return redirect('web:grammar-detail', pk=rule.pk)
     return render(request, 'web/grammar_form.html', {
         'form': form,
@@ -396,6 +448,7 @@ def grammar_delete(request, pk):
         return HttpResponseForbidden()
     rule = get_object_or_404(GrammarRule, pk=pk)
     rule.delete()
+    log_activity(request, Action.GRAMMAR_DELETE, rule.title)
     messages.success(request, f'Правило «{rule.title}» удалено.')
     return redirect('web:grammar')
 

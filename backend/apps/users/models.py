@@ -33,6 +33,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    # Look of the site (apps/web/appearance.py): {"mode", "accent", "tint"}; empty until
+    # the user picks something, so new accounts follow the system theme.
+    appearance = models.JSONField(default=dict, blank=True)
+    appearance_hint_seen = models.BooleanField(default=False)
 
     objects = UserManager()
 
@@ -47,3 +51,42 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class ActivityLog(models.Model):
+    """Who did what on the site: sign-ins, content changes, admin actions (activity.py)."""
+
+    class Action(models.TextChoices):
+        LOGIN = 'login', 'Вход'
+        LOGIN_GOOGLE = 'login_google', 'Вход через Google'
+        LOGIN_FAILED = 'login_failed', 'Неудачный вход'
+        LOGOUT = 'logout', 'Выход'
+        REGISTER = 'register', 'Регистрация'
+        PASSWORD_RESET = 'password_reset', 'Сменил пароль по ссылке'
+        WORD_ADD = 'word_add', 'Добавил слово'
+        WORD_DELETE = 'word_delete', 'Удалил слово'
+        DECK_CREATE = 'deck_create', 'Создал группу слов'
+        GRAMMAR_CREATE = 'grammar_create', 'Создал правило'
+        GRAMMAR_EDIT = 'grammar_edit', 'Изменил правило'
+        GRAMMAR_DELETE = 'grammar_delete', 'Удалил правило'
+        GRAMMAR_LEARNED = 'grammar_learned', 'Отметил правило изученным'
+        GRAMMAR_UNLEARNED = 'grammar_unlearned', 'Снял отметку «изучено»'
+        ADMIN_GRANT = 'admin_grant', 'Назначил администратором'
+        ADMIN_REVOKE = 'admin_revoke', 'Снял права администратора'
+        USER_BLOCK = 'user_block', 'Заблокировал пользователя'
+        USER_UNBLOCK = 'user_unblock', 'Разблокировал пользователя'
+        PASSWORD_LINK = 'password_link', 'Создал ссылку сброса пароля'
+
+    # The email is kept separately so entries stay readable after a user is deleted.
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity')
+    user_email = models.CharField(max_length=254, blank=True)
+    action = models.CharField(max_length=32, choices=Action.choices, db_index=True)
+    target = models.CharField(max_length=255, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.created_at:%Y-%m-%d %H:%M} {self.user_email} {self.get_action_display()} {self.target}'

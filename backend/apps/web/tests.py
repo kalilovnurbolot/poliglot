@@ -7,8 +7,9 @@ from django.urls import reverse
 
 from apps.core.models import Language
 from apps.grammar.models import GrammarProgress, GrammarRule
-from apps.users.models import User
+from apps.users.models import ActivityLog, User
 from apps.vocabulary.models import Deck, Word
+from apps.vocabulary.queries import default_deck
 
 from .rule_render import extract_lede, extract_sections, render_rule
 
@@ -106,6 +107,35 @@ class WebPagesTests(TestCase):
         self.assertEqual(post(b'\0' * 400_000).status_code, 400)
         connect.side_effect = OSError
         self.assertEqual(post(b'\0\0').status_code, 503)
+
+    def test_appearance_saved_in_account(self):
+        post = lambda data: self.client.post('/appearance/', data, content_type='application/json')
+        self.assertEqual(post({'hint_seen': True}).status_code, 302)  # login required
+
+        self.client.force_login(self.user)
+        page = self.client.get('/').content.decode()
+        self.assertIn('id="appearance-data"', page)
+        self.assertNotIn('data-theme=', page.split('<head>')[0])
+
+        self.assertEqual(post({'mode': 'dark', 'accent': '#EC4899', 'tint': True}).status_code, 204)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.appearance, {'mode': 'dark', 'accent': '#ec4899', 'tint': True})
+        self.assertTrue(self.user.appearance_hint_seen)
+        html_tag = self.client.get('/').content.decode().split('<head>')[0]
+        self.assertIn('data-theme="dark" data-accent style="--accent: #ec4899" data-tint', html_tag)
+
+        for bad in [{'mode': 'pink', 'accent': '', 'tint': False},
+                    {'mode': 'light', 'accent': 'red', 'tint': False},
+                    {'mode': 'light', 'accent': '#ec4899"><script>', 'tint': False},
+                    {'mode': 'light', 'accent': '', 'tint': 'yes'},
+                    {}]:
+            self.assertEqual(post(bad).status_code, 400, bad)
+
+        other = User.objects.create_user(email='other@example.com', password='pass12345!x')
+        self.client.force_login(other)
+        self.assertEqual(post({'hint_seen': True}).status_code, 204)
+        other.refresh_from_db()
+        self.assertEqual((other.appearance, other.appearance_hint_seen), ({}, True))
 
     def test_learn_and_quiz_pages(self):
         self.client.force_login(self.user)
@@ -208,3 +238,101 @@ class WebPagesTests(TestCase):
 
         self.client.post(f'/grammar/{new.pk}/delete/')
         self.assertFalse(GrammarRule.objects.filter(pk=new.pk).exists())
+
+
+@override_settings(ADMIN_EMAILS=['owner@example.com'], STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class AdministrationTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(email='owner@example.com', password='pass12345!x')
+        self.admin = User.objects.create_user(email='admin@example.com', password='pass12345!x', is_staff=True)
+        self.user = User.objects.create_user(email='user@example.com', password='pass12345!x')
+
+    def act(self, user, action):
+        return self.client.post(f'/manage/users/{user.pk}/{action}/')
+
+    def test_only_admins(self):
+        self.assertRedirects(self.client.get('/manage/users/'), '/login/?next=/manage/users/', fetch_redirect_response=False)
+        self.client.force_login(self.user)
+        for url in ['/manage/users/', '/manage/log/']:
+            self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.act(self.admin, 'revoke_admin').status_code, 403)
+        self.assertNotContains(self.client.get('/'), 'Админка')
+
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get('/'), 'Админка')
+        self.assertContains(self.client.get('/manage/users/?q=user%40'), 'user@example.com')
+        self.assertEqual(self.client.get('/manage/log/').status_code, 200)
+
+    def test_roles_and_blocking_are_logged(self):
+        self.client.force_login(self.admin)
+        self.act(self.user, 'grant_admin')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_staff and self.user.is_superuser)
+        self.act(self.user, 'revoke_admin')
+        self.act(self.user, 'block')
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_staff or self.user.is_active)
+
+        actions = list(ActivityLog.objects.filter(user=self.admin).exclude(action='login').values_list('action', 'target'))
+        self.assertEqual(actions, [('user_block', 'user@example.com'), ('admin_revoke', 'user@example.com'),
+                                   ('admin_grant', 'user@example.com')])
+        self.assertContains(self.client.get('/manage/log/?group=admin'), 'заблокировал пользователя')
+
+        # Neither yourself nor the owners from ADMIN_EMAILS can be changed.
+        self.assertEqual(self.act(self.admin, 'revoke_admin').status_code, 403)
+        self.assertEqual(self.act(self.owner, 'block').status_code, 403)
+        self.assertEqual(self.act(self.user, 'delete_everything').status_code, 403)
+
+    def test_blocked_user_cannot_sign_in(self):
+        self.user.is_active = False
+        self.user.save()
+        res = self.client.post('/login/', {'email': 'user@example.com', 'password': 'pass12345!x'})
+        self.assertContains(res, 'Аккаунт заблокирован')
+        res = self.client.post('/login/', {'email': 'user@example.com', 'password': 'wrong'})
+        self.assertContains(res, 'Неверный email или пароль')
+        with patch('apps.users.google.google_id_token.verify_oauth2_token', return_value={'email': 'user@example.com'}), \
+                self.settings(GOOGLE_OAUTH_CLIENT_ID='x'):
+            res = self.client.post('/auth/google/', {'credential': 't'}, content_type='application/json')
+        self.assertEqual(res.status_code, 401)
+
+    def test_user_actions_are_logged(self):
+        self.client.post('/login/', {'email': 'user@example.com', 'password': 'wrong'})
+        self.client.post('/login/', {'email': 'user@example.com', 'password': 'pass12345!x'},
+                         HTTP_X_FORWARDED_FOR='203.0.113.7, 10.0.0.1')
+        deck = default_deck(self.user, Language.objects.get(code='en'))
+        self.client.post('/words/', {'text': 'goat', 'translation': 'коза', 'level': 'A1', 'part_of_speech': 'noun', 'deck': deck.pk})
+        self.client.post('/logout/')
+        log = list(ActivityLog.objects.order_by('created_at', 'pk').values_list('action', 'user_email', 'target', 'ip'))
+        self.assertEqual(log[0][:2], ('login_failed', 'user@example.com'))
+        self.assertEqual(log[1], ('login', 'user@example.com', '', '203.0.113.7'))
+        self.assertIn(('word_add', 'user@example.com', 'goat — коза'), [row[:3] for row in log])
+        self.assertEqual(log[-1][:2], ('logout', 'user@example.com'))
+
+    def test_password_reset_link(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(f'/manage/users/{self.admin.pk}/reset-link/').status_code, 403)
+
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(f'/manage/users/{self.admin.pk}/reset-link/').status_code, 403)  # self
+        self.assertEqual(self.client.post(f'/manage/users/{self.owner.pk}/reset-link/').status_code, 403)
+        res = self.client.post(f'/manage/users/{self.user.pk}/reset-link/')
+        link = res.context['link']
+        self.assertTrue(link.startswith('http://testserver/reset/'))
+        self.assertTrue(ActivityLog.objects.filter(user=self.admin, action='password_link', target=self.user.email).exists())
+
+        self.client.logout()
+        path = link.removeprefix('http://testserver')
+        self.assertContains(self.client.get(path), 'user@example.com')
+        res = self.client.post(path, {'new_password1': 'short', 'new_password2': 'short'})
+        self.assertEqual(res.status_code, 200)  # too weak: form errors, password unchanged
+        res = self.client.post(path, {'new_password1': 'N3w-pass-word!', 'new_password2': 'N3w-pass-word!'})
+        self.assertRedirects(res, '/login/', fetch_redirect_response=False)
+        self.assertTrue(self.client.login(email='user@example.com', password='N3w-pass-word!'))
+        self.assertTrue(ActivityLog.objects.filter(user=self.user, action='password_reset').exists())
+
+        self.client.logout()
+        self.assertContains(self.client.get(path), 'Ссылка недействительна', status_code=400)  # one-time
+        self.assertContains(self.client.get('/reset/zzz/bad-token/'), 'Ссылка недействительна', status_code=400)

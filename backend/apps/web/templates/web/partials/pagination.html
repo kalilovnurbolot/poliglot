@@ -1,0 +1,7 @@
+{% if page.paginator.num_pages > 1 %}
+  <nav class="flex items-center justify-between gap-3 text-sm text-zinc-500">
+    {% if page.has_previous %}<a href="?{{ query }}&page={{ page.previous_page_number }}" class="btn btn-secondary">← Назад</a>{% else %}<span></span>{% endif %}
+    <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a href="?{{ query }}&page={{ page.next_page_number }}" class="btn btn-secondary">Дальше →</a>{% else %}<span></span>{% endif %}
+  </nav>
+{% endif %}
