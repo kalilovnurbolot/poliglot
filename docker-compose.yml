@@ -22,6 +22,10 @@ services:
       DATABASE_URL: postgres://poliglot:poliglot@db:5432/poliglot
       # Django reaches the voice service inside the Docker network; browsers never do.
       VOICE_SERVICE_URL: ws://voice:2700/
+      BACKUP_DIR: /backups
+    volumes:
+      # Shared with the `backup` service: database versions in the admin panel.
+      - ./backups:/backups
     ports:
       # Сырттан түз кирүүнү жаап, Nginx (же localhost) үчүн гана ачык калтырылды:
       - "127.0.0.1:8018:8000"

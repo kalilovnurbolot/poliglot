@@ -101,6 +101,10 @@ GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 VOICE_SERVICE_URL = env('VOICE_SERVICE_URL', default='')
 VOICE_SECRET = env('VOICE_SECRET', default='')
 
+# Folder shared with the `backup` service (docker-compose*.yml): the admin panel lists,
+# downloads and restores database versions there. Empty = the «База данных» tab is off.
+BACKUP_DIR = env('BACKUP_DIR', default='')
+
 # Accounts that are always admins (is_staff + is_superuser), whichever way they sign up.
 ADMIN_EMAILS = [e.lower() for e in env.list('ADMIN_EMAILS', default=['kalilovnurbolot3@gmail.com'])]
 

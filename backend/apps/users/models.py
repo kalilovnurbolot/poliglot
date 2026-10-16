@@ -43,6 +43,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
+    @property
+    def is_owner(self):
+        """Accounts from ADMIN_EMAILS: always admins, and only they manage database versions."""
+        return bool(self.email) and self.email.lower() in settings.ADMIN_EMAILS
+
     def save(self, *args, **kwargs):
         if self.email and self.email.lower() in settings.ADMIN_EMAILS:
             self.is_staff = True
@@ -76,6 +81,10 @@ class ActivityLog(models.Model):
         USER_BLOCK = 'user_block', 'Заблокировал пользователя'
         USER_UNBLOCK = 'user_unblock', 'Разблокировал пользователя'
         PASSWORD_LINK = 'password_link', 'Создал ссылку сброса пароля'
+        BACKUP_CREATE = 'backup_create', 'Запустил бэкап базы'
+        BACKUP_RESTORE = 'backup_restore', 'Запустил восстановление базы'
+        BACKUP_DOWNLOAD = 'backup_download', 'Скачал бэкап базы'
+        BACKUP_UPLOAD = 'backup_upload', 'Загрузил бэкап базы'
 
     # The email is kept separately so entries stay readable after a user is deleted.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity')

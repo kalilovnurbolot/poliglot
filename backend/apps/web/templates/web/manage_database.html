@@ -1,0 +1,95 @@
+{% extends "web/base.html" %}
+
+{% block title %}База данных · Полиглот{% endblock %}
+
+{% block head %}{% if busy %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+  {% include "web/partials/manage_tabs.html" %}
+
+  {% if not configured %}
+    <div class="card p-6 text-sm text-zinc-500">
+      Версии базы недоступны: не подключена папка бэкапов. Нужен сервис <code>backup</code> и общая папка
+      <code>./backups</code> у сервисов <code>backend</code> и <code>backup</code> с переменной
+      <code>BACKUP_DIR=/backups</code> (так настроено в <code>docker-compose.yml</code>).
+    </div>
+  {% else %}
+    <div class="card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div class="text-sm">
+        {% if busy %}
+          <p class="font-medium text-indigo-600 dark:text-indigo-400">Выполняется: {{ status.message|default:"задача в очереди" }}…</p>
+          <p class="text-zinc-500">Страница обновится сама. Во время переключения базы сайт недоступен несколько секунд.</p>
+        {% elif status.state == "failed" %}
+          <p class="font-medium text-red-600 dark:text-red-400">{{ status.message }}</p>
+        {% else %}
+          <p class="font-medium text-zinc-900 dark:text-zinc-50">{{ status.message|default:"Готов" }}</p>
+          <p class="text-zinc-500">Бэкап делается автоматически каждый день и хранится 14 дней.</p>
+        {% endif %}
+        {% if stalled %}
+          <p class="mt-1 text-red-600 dark:text-red-400">Сервис бэкапов не отвечает. Проверьте на сервере: <code>docker compose ps backup</code>.</p>
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'web:manage-database-backup' %}" class="shrink-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" {% if busy %}disabled{% endif %}>Сделать бэкап сейчас</button>
+      </form>
+    </div>
+
+    <form method="post" action="{% url 'web:manage-database-upload' %}" enctype="multipart/form-data"
+          class="card flex flex-col gap-3 p-5" data-submitting-label="Загружаем...">
+      {% csrf_token %}
+      <div class="text-sm">
+        <p class="font-medium text-zinc-900 dark:text-zinc-50">Загрузить бэкап</p>
+        <p class="text-zinc-500">Дамп PostgreSQL этого сайта: <code>.sql</code> или <code>.sql.gz</code>, например со старого сервера. Появится в списке версий, его можно будет восстановить.</p>
+      </div>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input type="file" name="file" accept=".sql,.gz" required class="input min-w-0 flex-1 cursor-pointer file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm dark:file:bg-zinc-800 dark:file:text-zinc-200">
+        <button type="submit" class="btn btn-secondary shrink-0" {% if busy %}disabled{% endif %}>Загрузить</button>
+      </div>
+    </form>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Версии</h2>
+      {% if not backups %}<p class="text-sm text-zinc-500">Бэкапов пока нет.</p>{% endif %}
+      <ul class="flex flex-col gap-2">
+        {% for b in backups %}
+          <li class="card flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0 text-sm">
+              <p class="flex flex-wrap items-center gap-2">
+                <time data-local datetime="{{ b.created|date:'c' }}" class="font-medium text-zinc-900 dark:text-zinc-50">{{ b.created|date:"d.m.Y H:i" }}</time>
+                <span class="text-zinc-500">{{ b.kind }} · {{ b.size|filesizeformat }}</span>
+                {% if forloop.first %}<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">последняя</span>{% endif %}
+                {% if b.same_version is False %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-400" title="Сделан другой версией сайта: при восстановлении структура базы обновится до текущей">другая версия сайта</span>{% endif %}
+              </p>
+              <p class="mt-0.5 break-all font-mono text-xs text-zinc-400">{{ b.name }}</p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <a href="{% url 'web:manage-database-download' b.name %}" class="btn btn-secondary !py-1.5">Скачать</a>
+              <form method="post" action="{% url 'web:manage-database-restore' b.name %}"
+                    data-confirm="Восстановить базу из версии {{ b.created|date:'d.m.Y H:i' }} UTC? Все текущие данные заменятся данными этой версии. Текущее состояние сначала сохранится отдельным бэкапом, к нему можно будет вернуться.{% if b.same_version is False %} Версия сделана другой версией сайта: её структура обновится, не закрывайте страницу до конца.{% endif %} Сайт будет недоступен несколько секунд.">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger !py-1.5" {% if busy %}disabled{% endif %}>Восстановить</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if history %}
+      <section class="flex flex-col gap-3">
+        <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">История</h2>
+        <ul class="card flex flex-col divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+          {% for h in history %}
+            <li class="flex flex-col gap-0.5 px-4 py-2 sm:flex-row sm:gap-4">
+              <time data-local datetime="{{ h.at }}" class="shrink-0 font-mono text-xs text-zinc-400 sm:w-32">{{ h.at }}</time>
+              <span class="break-all {% if 'ОШИБКА' in h.text or 'ОТКАЗ' in h.text %}text-red-600 dark:text-red-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{{ h.text }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  {% endif %}
+</main>
+{% endblock %}

@@ -36,6 +36,11 @@ urlpatterns = [
     path('manage/users/<int:pk>/reset-link/', admin_views.user_reset_link, name='manage-user-reset-link'),
     path('manage/users/<int:pk>/<str:action>/', admin_views.user_action, name='manage-user-action'),
     path('manage/log/', admin_views.activity, name='manage-log'),
+    path('manage/database/', admin_views.database, name='manage-database'),
+    path('manage/database/backup/', admin_views.database_backup, name='manage-database-backup'),
+    path('manage/database/upload/', admin_views.database_upload, name='manage-database-upload'),
+    path('manage/database/<str:name>/restore/', admin_views.database_restore, name='manage-database-restore'),
+    path('manage/database/<str:name>/download/', admin_views.database_download, name='manage-database-download'),
 
     path('manifest.webmanifest', views.manifest, name='manifest'),
     path('sw.js', views.service_worker, name='service-worker'),

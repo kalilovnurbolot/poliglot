@@ -336,3 +336,101 @@ class AdministrationTests(TestCase):
         self.client.logout()
         self.assertContains(self.client.get(path), 'Ссылка недействительна', status_code=400)  # one-time
         self.assertContains(self.client.get('/reset/zzz/bad-token/'), 'Ссылка недействительна', status_code=400)
+
+    def test_database_versions(self):
+        import tempfile
+        from pathlib import Path
+
+        from .backups import current_fingerprint
+
+        folder = Path(tempfile.mkdtemp())
+        same = folder / 'poliglot-2026-10-16_030000-auto.sql.gz'
+        other = folder / 'poliglot-2026-10-01_030000-auto.sql.gz'
+        for path in (same, other):
+            path.write_bytes(b'dump')
+        (folder / (same.name + '.meta')).write_text(current_fingerprint())
+        (folder / (other.name + '.meta')).write_text('old-schema')
+        (folder / 'secret.txt').write_text('not a backup')
+
+        with self.settings(BACKUP_DIR=str(folder)):
+            self.client.force_login(self.admin)  # admins aren't owners
+            self.assertEqual(self.client.get('/manage/database/').status_code, 403)
+            self.assertNotContains(self.client.get('/manage/users/'), 'База данных')
+
+            self.client.force_login(self.owner)
+            page = self.client.get('/manage/database/')
+            self.assertEqual([b['same_version'] for b in page.context['backups']], [True, False])
+            self.assertContains(page, 'другая версия сайта')
+
+            res = self.client.get(f'/manage/database/{same.name}/download/')
+            self.assertEqual(b''.join(res.streaming_content), b'dump')
+            res.close()
+            self.assertEqual(self.client.get('/manage/database/secret.txt/download/').status_code, 404)
+            self.assertEqual(self.client.get('/manage/database/..%2Fsecret.txt/download/').status_code, 404)
+
+            self.client.post('/manage/database/backup/')
+            self.client.post(f'/manage/database/{same.name}/restore/')  # busy: the backup is still queued
+            jobs = sorted(p.read_text() for p in (folder / '.queue').glob('*.job'))
+            self.assertEqual(jobs, ['backup'])
+            self.assertTrue(self.client.get('/manage/database/').context['busy'])
+
+            for job in (folder / '.queue').glob('*.job'):
+                job.unlink()
+            self.client.post(f'/manage/database/{same.name}/restore/')
+            self.assertEqual([p.read_text() for p in (folder / '.queue').glob('*.job')], [f'restore {same.name}'])
+            self.assertEqual(self.client.post('/manage/database/nope.sql.gz/restore/').status_code, 404)
+
+        self.assertEqual(
+            list(ActivityLog.objects.filter(user=self.owner).exclude(action='login').values_list('action', flat=True)),
+            ['backup_restore', 'backup_create', 'backup_download'],
+        )
+        with self.settings(BACKUP_DIR=''):
+            self.assertContains(self.client.get('/manage/database/'), 'не подключена папка бэкапов')
+
+    def test_database_upload(self):
+        import gzip
+        import tempfile
+        from pathlib import Path
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from .backups import fingerprint
+
+        folder = Path(tempfile.mkdtemp())
+        dump = (
+            '--\r\n-- PostgreSQL database dump\r\n--\r\n'
+            'COPY public.django_migrations (id, app, name, applied) FROM stdin;\r\n'
+            '2\tusers\t0002_make_admin\t2026-09-16 11:36:16+00\r\n'
+            '1\tcore\t0001_initial\t2026-09-16 11:36:16+00\r\n'
+            '\\.\r\n'
+        ).encode()
+        upload = lambda name, content: self.client.post('/manage/database/upload/', {'file': SimpleUploadedFile(name, content)})
+
+        with self.settings(BACKUP_DIR=str(folder)):
+            self.client.force_login(self.admin)
+            self.assertEqual(upload('a.sql', dump).status_code, 403)  # owners only
+
+            self.client.force_login(self.owner)
+            upload('old-server.sql', dump)  # plain, with Windows line endings
+            upload('again.sql.gz', gzip.compress(dump))
+            saved = sorted(folder.glob('*-uploaded.sql.gz'))
+            self.assertEqual(len(saved), 2)
+            content = gzip.decompress(saved[0].read_bytes())
+            self.assertNotIn(b'\r', content)
+            self.assertTrue(content.startswith(b'--\n-- PostgreSQL database dump'))
+            expected = fingerprint([('core', '0001_initial'), ('users', '0002_make_admin')])
+            self.assertEqual(Path(f'{saved[0]}.meta').read_text(), expected)
+            versions = self.client.get('/manage/database/').context['backups']
+            self.assertEqual({v['kind'] for v in versions}, {'Загруженный'})
+            self.assertEqual({v['same_version'] for v in versions}, {False})  # older schema
+
+            for name, content, error in [
+                ('notes.sql', b'hello\n', 'Это не дамп PostgreSQL.'),
+                ('broken.sql.gz', b'not gzip', 'Не удалось прочитать файл'),
+                ('other.sql', b'--\n-- PostgreSQL database dump\n--\nCREATE TABLE x ();\n', 'бэкап другой базы'),
+                ('photo.png', dump, 'Выберите файл .sql или .sql.gz'),
+            ]:
+                self.assertContains(self.client.post('/manage/database/upload/', {'file': SimpleUploadedFile(name, content)}, follow=True), error)
+            self.assertEqual(len(list(folder.glob('*.sql.gz'))), 2)  # nothing left from failed uploads
+            self.assertEqual(list(folder.glob('*.part')), [])
+        self.assertEqual(ActivityLog.objects.filter(user=self.owner, action='backup_upload').count(), 2)

@@ -1,7 +1,10 @@
 <div class="flex flex-wrap items-end justify-between gap-3">
   <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Администрирование</h1>
-  <nav class="flex gap-2">
+  <nav class="flex flex-wrap gap-2">
     <a href="{% url 'web:manage-users' %}" class="pill {% if request.resolver_match.url_name == 'manage-users' %}pill-active{% endif %}">Пользователи</a>
     <a href="{% url 'web:manage-log' %}" class="pill {% if request.resolver_match.url_name == 'manage-log' %}pill-active{% endif %}">Журнал действий</a>
+    {% if user.is_owner %}
+      <a href="{% url 'web:manage-database' %}" class="pill {% if request.resolver_match.url_name == 'manage-database' %}pill-active{% endif %}">База данных</a>
+    {% endif %}
   </nav>
 </div>

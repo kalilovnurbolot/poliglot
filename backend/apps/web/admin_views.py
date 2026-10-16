@@ -4,9 +4,11 @@ from functools import wraps
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -15,6 +17,8 @@ from django.views.decorators.http import require_POST
 
 from apps.users.activity import Action, log_activity
 from apps.users.models import ActivityLog, User
+
+from . import backups
 
 PAGE_SIZE = 50
 
@@ -36,6 +40,7 @@ ACTION_GROUPS = {
     ]),
     'admin': ('Действия администраторов', [
         Action.ADMIN_GRANT, Action.ADMIN_REVOKE, Action.USER_BLOCK, Action.USER_UNBLOCK, Action.PASSWORD_LINK,
+        Action.BACKUP_CREATE, Action.BACKUP_RESTORE, Action.BACKUP_DOWNLOAD, Action.BACKUP_UPLOAD,
     ]),
 }
 GROUP_OF_ACTION = {action: group for group, (_, actions) in ACTION_GROUPS.items() for action in actions}
@@ -53,9 +58,17 @@ def admin_required(view):
     return wrapper
 
 
-def is_owner(user):
-    """Accounts from ADMIN_EMAILS are always admins (User.save) and can't be changed here."""
-    return user.email.lower() in settings.ADMIN_EMAILS
+def owner_required(view):
+    """Database versions hold every user's data and can roll the whole site back."""
+    @admin_required
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_owner:
+            return render(request, 'web/staff_only.html', {
+                'message': 'Управлять версиями базы могут только владельцы сайта.',
+            }, status=403)
+        return view(request, *args, **kwargs)
+    return wrapper
 
 
 @admin_required
@@ -71,7 +84,6 @@ def users(request):
         found = found.filter(is_active=False)
     page = Paginator(found, PAGE_SIZE).get_page(request.GET.get('page'))
     for user in page:
-        user.is_owner = is_owner(user)
         user.is_me = user.pk == request.user.pk
     return render(request, 'web/manage_users.html', {
         'page': page,
@@ -91,7 +103,8 @@ def users(request):
 @require_POST
 def user_action(request, pk, action):
     target = get_object_or_404(User, pk=pk)
-    if action not in USER_ACTIONS or target.pk == request.user.pk or is_owner(target):
+    # Owners (ADMIN_EMAILS) are always admins (User.save), so they can't be changed here.
+    if action not in USER_ACTIONS or target.pk == request.user.pk or target.is_owner:
         return render(request, 'web/staff_only.html', {
             'message': 'Это действие недоступно: нельзя менять себя и владельцев сайта.',
         }, status=403)
@@ -111,7 +124,7 @@ def user_action(request, pk, action):
 def user_reset_link(request, pk):
     """A one-time link the admin sends to the user (no email needed) to set a new password."""
     target = get_object_or_404(User, pk=pk)
-    if target.pk == request.user.pk or is_owner(target):
+    if target.pk == request.user.pk or target.is_owner:
         return render(request, 'web/staff_only.html', {
             'message': 'Ссылку нельзя создать для себя и для владельцев сайта.',
         }, status=403)
@@ -151,3 +164,83 @@ def activity(request):
         'filter_query': urlencode({'user': user_id, 'q': q}),
         'page_query': urlencode({'user': user_id, 'group': group, 'q': q}),
     })
+
+
+# ---------- Database versions (backups made by the `backup` service) ----------
+
+STALE_JOB_SECONDS = 30  # the service polls every few seconds
+
+
+@owner_required
+def database(request):
+    if backups.backup_dir() is None:
+        return render(request, 'web/manage_database.html', {'configured': False})
+    # The page refreshes itself during a restore, so this is where an older version gets
+    # its migrations when the service asks for them.
+    backups.run_requested_migrations()
+    status = backups.service_status() or {}
+    pending = backups.pending_jobs()
+    return render(request, 'web/manage_database.html', {
+        'configured': True,
+        'backups': backups.list_backups(),
+        'status': status,
+        'busy': bool(pending) or status.get('state') == 'running',
+        'stalled': any(age > STALE_JOB_SECONDS for _, age in pending),
+        'history': backups.history(),
+    })
+
+
+def _busy():
+    return bool(backups.pending_jobs()) or (backups.service_status() or {}).get('state') == 'running'
+
+
+@owner_required
+@require_POST
+def database_backup(request):
+    if backups.backup_dir() is None:
+        raise Http404
+    if not _busy():
+        backups.queue_job('backup')
+        log_activity(request, Action.BACKUP_CREATE)
+    return redirect('web:manage-database')
+
+
+@owner_required
+@require_POST
+def database_restore(request, name):
+    if backups.backup_path(name) is None:
+        raise Http404
+    if _busy():
+        messages.error(request, 'Дождитесь окончания текущей операции.')
+    else:
+        backups.queue_job(f'restore {name}')
+        log_activity(request, Action.BACKUP_RESTORE, name)
+    return redirect('web:manage-database')
+
+
+@owner_required
+def database_download(request, name):
+    path = backups.backup_path(name)
+    if path is None:
+        raise Http404
+    log_activity(request, Action.BACKUP_DOWNLOAD, name)
+    return FileResponse(path.open('rb'), as_attachment=True, filename=name)
+
+
+@owner_required
+@require_POST
+def database_upload(request):
+    upload = request.FILES.get('file')
+    if backups.backup_dir() is None:
+        raise Http404
+    if upload is None or not upload.name.endswith(('.sql', '.sql.gz')):
+        messages.error(request, 'Выберите файл .sql или .sql.gz.')
+        return redirect('web:manage-database')
+    try:
+        name = backups.save_upload(upload)
+    except backups.UploadError as e:
+        messages.error(request, str(e))
+        return redirect('web:manage-database')
+    log_activity(request, Action.BACKUP_UPLOAD, f'{upload.name} → {name}')
+    messages.success(request, f'Загружено: {name}')
+    return redirect('web:manage-database')
