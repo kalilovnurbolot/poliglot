@@ -20,11 +20,37 @@ services:
       - ./backend/.env.ip
     environment:
       DATABASE_URL: postgres://poliglot:${POSTGRES_PASSWORD}@db:5432/poliglot
+      VOICE_SERVICE_URL: ws://voice:2700/
+      GRAMMAR_SERVICE_URL: http://grammar:8010
+      MEANING_SERVICE_URL: http://meaning:8020
+      PRONOUNCE_SERVICE_URL: http://pronounce:8030
+      VOICE_SECRET: ${VOICE_SECRET:-}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Speech recognition and checks of mission answers, inside the Docker network only.
+  voice:
+    build: ./voice
+    environment:
+      VOICE_SECRET: ${VOICE_SECRET:-}
+    restart: unless-stopped
+
+  grammar:
+    image: erikvl87/languagetool:6.8
+    environment:
+      Java_Xmx: 1g
+    restart: unless-stopped
+
+  meaning:
+    build: ./meaning
+    restart: unless-stopped
+
+  pronounce:
+    build: ./pronounce
     restart: unless-stopped
 
 volumes:

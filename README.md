@@ -30,7 +30,7 @@ python manage.py runserver
 
 ## Стили (Tailwind)
 
-Исходник — [apps/web/tailwind/input.css](backend/apps/web/tailwind/input.css), результат — `apps/web/static/web/css/app.css` (лежит в git, поэтому для запуска ничего собирать не нужно). Пересобрать после того, как в шаблонах/JS появились новые классы:
+Исходник — [apps/web/tailwind/input.css](backend/apps/web/tailwind/input.css), результат — `apps/web/static/web/css/app.css` (лежит в git, поэтому для запуска ничего собирать не нужно). Docker-образ собирает его заново при каждой сборке (Node внутри образа), так что с Docker ничего делать не нужно. Без Docker — пересобрать после того, как в шаблонах/JS появились новые классы:
 
 ```bash
 cd backend
@@ -62,7 +62,7 @@ docker compose up --build -d
 docker compose logs -f          # логи
 docker compose down             # остановить (данные Postgres сохранятся в volume)
 docker compose down -v          # остановить и стереть данные Postgres
-docker compose up --build -d    # пересобрать после изменений в коде
+docker compose up --build -d    # пересобрать после изменений в коде: миграции, стили и статика применяются сами
 docker compose exec backend python manage.py createsuperuser
 ```
 
