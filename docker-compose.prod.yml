@@ -24,7 +24,7 @@ services:
       GRAMMAR_SERVICE_URL: http://grammar:8010
       MEANING_SERVICE_URL: http://meaning:8020
       PRONOUNCE_SERVICE_URL: http://pronounce:8030
-      VOICE_SECRET: ${VOICE_SECRET:?set VOICE_SECRET in .env.prod}
+      VOICE_SECRET: ${VOICE_SECRET:-}
       BACKUP_DIR: /backups
     volumes:
       # Shared with the `backup` service: database versions in the admin panel.
@@ -37,7 +37,7 @@ services:
   voice:
     build: ./voice
     environment:
-      VOICE_SECRET: ${VOICE_SECRET:?set VOICE_SECRET in .env.prod}
+      VOICE_SECRET: ${VOICE_SECRET:-}
     restart: unless-stopped
 
 
