@@ -32,6 +32,26 @@ class LoginForm(forms.Form):
         return cleaned
 
 
+class WordListForm(forms.Form):
+    """Many words at once, pasted as text (word_list.parse_word_list)."""
+    text = forms.CharField(widget=forms.Textarea(attrs={
+        'class': INPUT, 'rows': 8,
+        'placeholder': 'achieve — достигать\navoid — избегать\n\nКаждое слово с новой строки. Заголовки вроде «Verbs» или «Adjectives» задают часть речи.',
+    }))
+    part_of_speech = forms.ChoiceField(widget=forms.Select(attrs={'class': INPUT}))
+    level = forms.ChoiceField(widget=forms.Select(attrs={'class': INPUT}))
+    deck = forms.ModelChoiceField(queryset=Deck.objects.none(), empty_label=None, widget=forms.Select(attrs={'class': INPUT}))
+
+    def __init__(self, *args, decks, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['deck'].queryset = decks
+        self.fields['part_of_speech'].choices = [
+            (value, f'Если не указано: {label}') for value, label in WordForm.PART_OF_SPEECH_LABELS.items()
+        ]
+        self.fields['part_of_speech'].initial = 'noun'
+        self.fields['level'].choices = [(c, f'Уровень {c}') for c, _ in Word._meta.get_field('level').choices]
+
+
 class NewPasswordForm(SetPasswordForm):
     """Setting a password from a reset link, styled like the other forms."""
 

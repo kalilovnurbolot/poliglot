@@ -3,7 +3,8 @@
 // With the voice service on, the same actions can be spoken (see VOICE_COMMANDS),
 // or the learner just says the translation and it is checked (see isCorrectAnswer).
 // Everything is also spoken aloud, so a session can be done in headphones without
-// looking at the screen.
+// looking at the screen. The direction toggle shows the word and asks for the
+// translation ("forward") or the other way round ("reverse"); the choice is remembered.
 (() => {
   const EXIT_DISTANCE = 600;
   const SWIPE_THRESHOLD = 100;
@@ -21,8 +22,24 @@
   // Checked in order, so longer phrases come first ("не знаю" before "знаю",
   // "озвучь перевод" before "озвучь").
   const VOICE_COMMANDS = [
+    ["стоп", "stop"],
+    ["хватит", "stop"],
+    ["выключи", "stop"],
+    ["stop", "stop"],
+    ["stopp", "stop"],
     ["не знаю", "left"],
     ["знаю", "right"],
+    // In reverse the microphone listens in the studied language, so commands are heard there.
+    ["i don t know", "left"],
+    ["don t know", "left"],
+    ["weiß nicht", "left"],
+    ["weiss nicht", "left"],
+    ["i know", "right"],
+    ["next", "down"],
+    ["skip", "down"],
+    ["weiter", "down"],
+    ["repeat", "speak"],
+    ["wiederholen", "speak"],
     ["в избранное", "up"],
     ["избранное", "up"],
     ["дальше", "down"],
@@ -41,6 +58,7 @@
   const ANSWER_SIMILARITY = 0.75;
   // Extra pause after the page stops talking before the microphone is heard again.
   const SPEECH_TAIL = 300;
+  const DIRECTION_KEY = "poliglot-learn-direction";
 
   const $ = (id) => document.getElementById(id);
   const card = $("flashcard");
@@ -52,6 +70,13 @@
   const stats = { known: 0, unknown: 0, favorited: 0 };
   let flipped = false;
   let animating = false;
+  let reverse = false;
+  try { reverse = localStorage.getItem(DIRECTION_KEY) === "reverse"; } catch {}
+
+  // What the card asks and what it expects, each with the language to speak it in.
+  const language = window.poliglotLanguage;
+  const question = (word) => (reverse ? [word.translation, "ru"] : [word.text, language]);
+  const answer = (word) => (reverse ? [word.text, language] : [word.translation, "ru"]);
 
   function setTransform(x, y, rotate, transition) {
     card.style.transition = transition || "none";
@@ -81,6 +106,7 @@
     if (queue.length === 0) {
       if (voiceSession) say("На сегодня всё. Отличная работа!", "ru").then(() => voiceSession?.stop());
       $("voice-panel").classList.replace("flex", "hidden");
+      $("learn-direction").classList.add("hidden");
       $("learn-stage").classList.add("hidden");
       const done = $("learn-done");
       done.classList.remove("hidden");
@@ -92,27 +118,56 @@
     }
 
     const { word } = queue[0];
+    const [questionText] = question(word);
+    const [answerText] = answer(word);
     const text = $("card-text");
-    text.textContent = word.text;
+    text.textContent = questionText;
     text.classList.remove("text-lg", "text-2xl", "text-3xl");
-    text.classList.add(sizeClass(word.text.length, [[40, "text-lg"], [20, "text-2xl"], [-1, "text-3xl"]]));
+    text.classList.add(sizeClass(questionText.length, [[40, "text-lg"], [20, "text-2xl"], [-1, "text-3xl"]]));
 
-    $("card-transcription").textContent = word.transcription;
-    $("card-transcription").classList.toggle("hidden", !word.transcription);
+    // The transcription goes with the foreign word, on whichever side it is.
+    const transcription = word.transcription;
+    $("card-transcription").textContent = transcription;
+    $("card-transcription").classList.toggle("hidden", reverse || !transcription);
+    $("card-back-transcription").textContent = transcription;
+    $("card-back-transcription").classList.toggle("hidden", !reverse || !transcription);
     $("card-pos").textContent = word.part_of_speech;
     $("card-level").textContent = word.level;
 
     const translation = $("card-translation");
-    translation.textContent = word.translation;
+    translation.textContent = answerText;
     translation.classList.remove("text-lg", "text-2xl");
-    translation.classList.add(word.translation.length > 30 ? "text-lg" : "text-2xl");
+    translation.classList.add(answerText.length > 30 ? "text-lg" : "text-2xl");
     $("card-example").textContent = word.example_sentence ? `«${word.example_sentence}»` : "";
 
     setFlipped(false);
     showHint(null);
     card.style.opacity = "1";
     setTransform(0, 0, 0);
-    if (voiceSession) say(word.text, window.poliglotLanguage);
+    if (voiceSession) say(...question(word));
+  }
+
+  // ---- direction ----
+  const directionButtons = document.querySelectorAll("#learn-direction [data-direction]");
+
+  function showDirection() {
+    for (const button of directionButtons) {
+      const active = (button.dataset.direction === "reverse") === reverse;
+      button.classList.toggle("pill-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  }
+
+  for (const button of directionButtons) {
+    button.addEventListener("click", () => {
+      const value = button.dataset.direction === "reverse";
+      if (value === reverse) return;
+      reverse = value;
+      try { localStorage.setItem(DIRECTION_KEY, reverse ? "reverse" : "forward"); } catch {}
+      showDirection();
+      // The microphone keeps going: each phrase is sent with the language and hints of the moment.
+      if (queue.length) render();
+    });
   }
 
   function showError(message) {
@@ -257,6 +312,20 @@
     return 1 - previous[b.length] / Math.max(a.length, b.length, 1);
   }
 
+  // Expected phrases for the voice service (see voice/server.py "hints"): the answer
+  // variants and the commands in the language being heard.
+  function voiceHints(word) {
+    const commands = VOICE_COMMANDS.map(([phrase]) => phrase).filter((phrase) => /[а-я]/.test(phrase) !== reverse);
+    const variants = answerVariants(answer(word)[0]).flatMap(({ full, short }) => [full, short]);
+    return [...new Set([...variants, ...commands])].filter(Boolean);
+  }
+
+  function voiceUrl(base) {
+    const params = new URLSearchParams(reverse ? { language } : {});
+    if (queue.length) voiceHints(queue[0].word).forEach((hint) => params.append("hint", hint));
+    return `${base}?${params}`;
+  }
+
   // A longer phrase may contain the answer ("это коза"), but only the full form: otherwise
   // "меня зовут" would pass for "(Нас) зовут" through its short form "зовут".
   function isCorrectAnswer(text, translation) {
@@ -269,41 +338,51 @@
   // Say something about the current card, then swipe it — unless it was already
   // swiped some other way in the meantime.
   let revealing = false;
-  async function sayThenSwipe(text, direction) {
+  async function sayThenSwipe(direction, ...phrases) {
     const current = queue[0];
     revealing = true;
     setFlipped(true);
-    await say(text, "ru");
+    for (const [text, language] of phrases) await say(text, language);
     revealing = false;
     if (queue[0] === current) swipe(direction);
   }
 
-  function runVoiceCommand(text) {
+  // `alternative` is what the service heard listening for this card's answers only: it may
+  // confirm a right answer, but it is never a command, since any speech comes out there
+  // as the closest expected phrase ("грязный" may be heard as "знаю").
+  function runVoiceCommand(text, { alternative } = {}) {
+    const match = VOICE_COMMANDS.find(([phrase]) => ` ${normalize(text)} `.includes(` ${phrase} `));
+    // "Стоп" works at any moment, even mid-reveal or after the last card.
+    if (match?.[1] === "stop") {
+      voiceSession?.stop();
+      return say("Голосовое управление выключено.", "ru");
+    }
     if (queue.length === 0 || revealing) return;
     const { word } = queue[0];
-    if (isCorrectAnswer(text, word.translation)) {
-      voiceStatus.textContent = `✓ Верно: «${text}»`;
-      return sayThenSwipe("Верно!", "right");
+    const heard = [text, alternative].find((candidate) => candidate && isCorrectAnswer(candidate, answer(word)[0]));
+    if (heard) {
+      voiceStatus.textContent = `✓ Верно: «${heard}»`;
+      return sayThenSwipe("right", ["Верно!", "ru"]);
     }
+    if (!text) return;
 
-    const match = VOICE_COMMANDS.find(([phrase]) => ` ${normalize(text)} `.includes(` ${phrase} `));
     if (!match) {
       voiceStatus.textContent = `✗ Вы сказали «${text}». Попробуйте ещё раз или скажите «не знаю»`;
       return say(`Нет, вы сказали: ${text}. Попробуйте ещё раз.`, "ru").then(() => {
-        if (queue[0]?.word === word) say(word.text, window.poliglotLanguage);
+        if (queue[0]?.word === word) say(...question(word));
       });
     }
     voiceStatus.textContent = `«${text}»`;
     const action = match[1];
-    if (action === "left") return sayThenSwipe(`Перевод: ${word.translation}`, "left");
-    if (action === "speak") return say(word.text, window.poliglotLanguage);
+    if (action === "left") return sayThenSwipe("left", ["Перевод:", "ru"], answer(word));
+    if (action === "speak") return say(...question(word));
     if (action === "speak-translation" || (action === "flip" && !flipped)) {
       setFlipped(true);
-      return say(word.translation, "ru");
+      return say(...answer(word));
     }
     if (action === "flip") {
       setFlipped(false);
-      return say(word.text, window.poliglotLanguage);
+      return say(...question(word));
     }
     swipe(action);
   }
@@ -322,13 +401,13 @@
     micButton.addEventListener("click", async () => {
       if (voiceSession) return voiceSession.stop();
       micButton.disabled = true;
-      voiceStatus.textContent = "Назовите перевод или скажите «не знаю». Ещё: «знаю», «в избранное», «дальше», «переверни», «повтори», «скажи перевод»";
+      voiceStatus.textContent = "Назовите перевод или скажите «не знаю». Ещё: «знаю», «в избранное», «дальше», «переверни», «повтори», «скажи перевод», «стоп»";
       // Spoken right away, inside the click: mobile browsers only allow speech that
       // starts from a user gesture.
       const intro = say("Назовите перевод слова.", "ru");
       try {
         voiceSession = await poliglot.voice.start({
-          url: config.url,
+          url: () => voiceUrl(config.url),
           onText: runVoiceCommand,
           onStop: (error) => {
             voiceSession = null;
@@ -344,7 +423,7 @@
         // Keep the phone screen on: a locked phone stops the microphone.
         wakeLock = await navigator.wakeLock?.request("screen").catch(() => null);
         await intro;
-        if (voiceSession && queue.length) say(queue[0].word.text, window.poliglotLanguage);
+        if (voiceSession && queue.length) say(...question(queue[0].word));
       } catch (e) {
         voiceStatus.textContent = e.name === "NotAllowedError"
           ? "Нет доступа к микрофону — разрешите его в настройках браузера."
@@ -362,5 +441,6 @@
     });
   }
 
+  showDirection();
   render();
 })();

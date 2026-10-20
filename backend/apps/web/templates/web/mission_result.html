@@ -1,0 +1,88 @@
+{% extends "web/base.html" %}
+
+{% block title %}Итоги · {{ attempt.mission.title }} · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="min-w-0 text-xl font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ attempt.mission.title }}: итоги</h1>
+    <a href="{% url 'web:missions' %}" class="shrink-0 text-sm text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">← Все миссии</a>
+  </div>
+
+  <div class="card flex flex-col items-center gap-2 p-6 text-center">
+    <div class="flex gap-1 text-amber-500">
+      {% for i in "123" %}
+        {% if forloop.counter <= attempt.stars %}
+          <svg class="h-9 w-9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+        {% else %}
+          <span class="text-zinc-300 dark:text-zinc-700">{% include "web/partials/icon.html" with name="star" class="h-9 w-9" %}</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <p class="text-4xl font-bold text-zinc-900 dark:text-zinc-50">{{ attempt.total }}<span class="text-lg font-medium text-zinc-500"> / 100</span></p>
+  </div>
+
+  <div class="card flex flex-col gap-4 p-6">
+    {% for label, value in scores %}
+      <div>
+        <div class="flex justify-between text-sm">
+          <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ label }}</span>
+          <span class="text-zinc-500">{% if value is None %}нет записи голоса{% else %}{{ value }}{% endif %}</span>
+        </div>
+        <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          {% if value is not None %}<div class="h-full rounded-full {% if value >= 80 %}bg-emerald-500{% elif value >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}" style="width: {{ value }}%"></div>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card flex flex-col gap-3 p-6">
+    <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Советы</h2>
+    <ul class="flex list-disc flex-col gap-1.5 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+      {% for line in attempt.feedback %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% if unclear %}
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm text-zinc-500">Послушать:</span>
+        {% for word in unclear %}
+          <button type="button" class="pill inline-flex items-center gap-1" data-say="{{ word }}">{% include "web/partials/icon.html" with name="volume" class="h-3.5 w-3.5" %}{{ word }}</button>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card flex flex-col gap-3 p-6">
+    <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Ваши ответы</h2>
+    <ol class="flex flex-col gap-2 text-sm">
+      {% for line in attempt.transcript %}
+        <li class="flex items-start gap-2">
+          <span class="mt-0.5 {% if line.passed %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">{% include "web/partials/icon.html" with name=line.passed|yesno:"check,x" class="h-4 w-4" %}</span>
+          <span><span class="text-zinc-500">{{ line.goal }}:</span> <span class="text-zinc-900 dark:text-zinc-50">«{{ line.text }}»</span>
+            {% if line.corrected %}<br><span class="text-emerald-700 dark:text-emerald-400">Правильно: «{{ line.corrected }}»</span>{% endif %}</span>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  {% if next_mission and not next_mission.locked %}
+    <div class="card flex flex-col gap-3 p-5">
+      <p class="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">Глава {{ next_mission.chapter }} открыта</p>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ next_mission.title }}</h2>
+      {% if next_mission.teaser %}<p class="text-zinc-700 italic dark:text-zinc-300">{{ next_mission.teaser }}</p>{% endif %}
+      <a href="{% url 'web:mission-play' next_mission.pk %}" class="btn btn-primary self-start">Что было дальше?</a>
+    </div>
+  {% endif %}
+
+  <div class="flex justify-center gap-3">
+    <a href="{% url 'web:mission-play' attempt.mission.pk %}" class="btn {% if next_mission and not next_mission.locked %}btn-secondary{% else %}btn-primary{% endif %}">Пройти ещё раз</a>
+    <a href="{% url 'web:missions' %}" class="btn btn-secondary">К карте</a>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-say]").forEach((button) =>
+    button.addEventListener("click", () => poliglot.speak(button.dataset.say, "{{ attempt.mission.language.code }}")));
+</script>
+{% endblock %}

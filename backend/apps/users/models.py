@@ -85,6 +85,7 @@ class ActivityLog(models.Model):
         BACKUP_RESTORE = 'backup_restore', 'Запустил восстановление базы'
         BACKUP_DOWNLOAD = 'backup_download', 'Скачал бэкап базы'
         BACKUP_UPLOAD = 'backup_upload', 'Загрузил бэкап базы'
+        MISSION_COMPLETE = 'mission_complete', 'Прошёл миссию'
 
     # The email is kept separately so entries stay readable after a user is deleted.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity')

@@ -5,7 +5,7 @@
   const WORKLET_URL = document.currentScript.dataset.worklet;
   const CHUNK_MS = 100; // voice-worklet.js posts 100 ms chunks
   const PRE_ROLL_CHUNKS = 3; // keep the start of a word that began before the level rose
-  const END_SILENCE_MS = 700; // this much quiet ends a phrase
+  const END_SILENCE_MS = 700; // this much quiet ends a phrase (start({ endSilenceMs }) to change)
   const MAX_PHRASE_MS = 8000;
   const MIN_VOICED_MS = 200; // shorter bursts (a click, a cough) are ignored
   const MIN_LEVEL = 0.015;
@@ -26,6 +26,19 @@
     return result;
   }
 
+  // Recognition wants 16 kHz: a context at that rate lets the browser resample properly
+  // (better than voice-worklet.js averaging). Firefox cannot connect a microphone to a
+  // context of another rate, so there it falls back to the device rate.
+  function audioContextFor(stream) {
+    try {
+      const context = new AudioContext({ sampleRate: 16000 });
+      return { context, source: context.createMediaStreamSource(stream) };
+    } catch {
+      const context = new AudioContext();
+      return { context, source: context.createMediaStreamSource(stream) };
+    }
+  }
+
   window.poliglot.voice = {
     supported() {
       return Boolean(navigator.mediaDevices?.getUserMedia && window.AudioWorkletNode);
@@ -34,11 +47,14 @@
     // Resolves with { stop(), setMuted(muted) } once the microphone is on. While muted
     // the microphone is ignored, e.g. so the page's own speech is not heard.
     // onStop(error) fires when listening ends: error is null after a normal stop().
-    async start({ url, onText, onStop }) {
+    // onText(text, data) also gets the whole reply, e.g. data.words for ?details=1 urls, or
+    // data.alternative, an expected answer heard more surely than `text` (text may then be "").
+    // `url` may be a function, called for each phrase (e.g. to send the current card's hints).
+    async start({ url, onText, onStop, endSilenceMs = END_SILENCE_MS }) {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-      const context = new AudioContext();
+      const { context, source } = audioContextFor(stream);
       let stopped = false;
       let muted = false;
 
@@ -57,11 +73,11 @@
         throw e;
       }
       const node = new AudioWorkletNode(context, "pcm-downsampler");
-      context.createMediaStreamSource(stream).connect(node);
+      source.connect(node);
 
       async function send(pcm) {
         try {
-          const res = await fetch(url, {
+          const res = await fetch(typeof url === "function" ? url() : url, {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/octet-stream", "X-CSRFToken": poliglot.csrfToken() },
@@ -69,7 +85,7 @@
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.detail || "Не удалось распознать речь.");
-          if (data.text && !stopped && !muted) onText(data.text);
+          if ((data.text || data.alternative) && !stopped && !muted) onText(data.text || "", data);
         } catch (e) {
           stop(e instanceof TypeError ? new Error("Нет связи с сервером.") : e);
         }
@@ -110,7 +126,7 @@
         } else {
           phrase.silentMs += CHUNK_MS;
         }
-        if (phrase.silentMs >= END_SILENCE_MS || phrase.chunks.length * CHUNK_MS >= MAX_PHRASE_MS) {
+        if (phrase.silentMs >= endSilenceMs || phrase.chunks.length * CHUNK_MS >= MAX_PHRASE_MS) {
           const { chunks, voicedMs } = phrase;
           phrase = null;
           if (voicedMs >= MIN_VOICED_MS) send(concat(chunks));

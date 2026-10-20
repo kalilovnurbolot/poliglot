@@ -10,6 +10,7 @@ SESSION_KEY = 'language'
 NAV_LINKS = [
     ('/learn/', 'Учить слова'),
     ('/quiz/', 'Квиз'),
+    ('/missions/', 'Миссии'),
     ('/grammar/', 'Грамматика'),
     ('/words/', 'Мои слова'),
 ]

@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 
 from apps.core.models import Language, Level
 from apps.grammar.models import GrammarProgress, GrammarRule
+from apps.missions.pronunciation import score_pronunciation
 from apps.quizzes.questions import NotEnoughWords, build_questions
 from apps.quizzes.serializers import QuizQuestionSerializer
 from apps.users.activity import Action, log_activity
@@ -26,9 +27,11 @@ from apps.vocabulary.serializers import ReviewCardSerializer
 
 from .appearance import clean_appearance
 from .context_processors import SESSION_KEY, current_language
-from .forms import GrammarRuleForm, LoginForm, NewPasswordForm, RegisterForm, WordForm
+from .mission_views import current_step, prefer_expected, step_hints
+from .forms import GrammarRuleForm, LoginForm, NewPasswordForm, RegisterForm, WordForm, WordListForm
 from .rule_render import extract_lede, extract_sections, render_rule
-from .voice import MAX_BYTES, VoiceUnavailable, recognize, voice_config
+from .voice import LANGUAGES as VOICE_LANGUAGES, MAX_BYTES, VoiceUnavailable, recognize, voice_config
+from .word_list import parse_word_list
 
 LEVELS = Level.values
 STATIC_DIR = Path(__file__).resolve().parent / 'static' / 'web'
@@ -226,17 +229,39 @@ def learn_deck(request, pk):
 @login_required
 @require_POST
 def voice_recognize(request):
-    """One recorded phrase (raw 16 kHz 16-bit PCM in the body) -> {"text": ...}."""
+    """One recorded phrase (raw 16 kHz 16-bit PCM in the body) -> {"text": ...}.
+
+    ?language=en picks the speech model (Russian by default); ?details=1 adds per-word
+    confidence and timings: {"text": ..., "words": [...]}; with it ?pronounce=1 also adds
+    "pronunciation", the sounds of each word (missions/pronunciation.py).
+    Expected answers help recognition (voice.recognize): ?hint=... (repeated) gives them,
+    and the reply may have "alternative"; ?mission=<pk> takes them from the current step
+    of that mission, and its "text" is then the expected phrase when only that reaches the goal.
+    """
     if voice_config() is None:
         raise Http404
+    language = request.GET.get('language', 'ru')
+    if language not in VOICE_LANGUAGES:
+        return JsonResponse({'detail': 'Язык не поддерживается.'}, status=400)
+    details = request.GET.get('details') == '1'
     pcm = request.body
     if not pcm or len(pcm) > MAX_BYTES or len(pcm) % 2:
         return JsonResponse({'detail': 'Некорректная запись.'}, status=400)
+    step = current_step(request, request.GET.get('mission'))
+    hints = step_hints(step, language) if step else request.GET.getlist('hint')
     try:
-        text = recognize(request.user, pcm)
+        result = recognize(request.user, pcm, language=language, details=details, hints=hints)
     except VoiceUnavailable:
         return JsonResponse({'detail': 'Сервис распознавания речи недоступен.'}, status=503)
-    return JsonResponse({'text': text})
+    if step:
+        result['text'] = prefer_expected(result, step, language)
+    if not details:
+        return JsonResponse(result)
+    if request.GET.get('pronounce') == '1' and language != 'ru':
+        pronunciation = score_pronunciation(pcm, result['text'], language)
+        if pronunciation:
+            result['pronunciation'] = pronunciation
+    return JsonResponse(result)
 
 
 @login_required
@@ -306,6 +331,7 @@ def words(request):
 
     return render(request, 'web/words.html', {
         'form': form,
+        'list_form': WordListForm(decks=groups, initial={'deck': deck or groups.first()}),
         'words': my_words,
         'groups': groups.annotate(word_count=Count('words')),
         'deck': deck,
@@ -313,6 +339,41 @@ def words(request):
         'levels': LEVELS,
         'level': level,
     })
+
+
+@login_required
+@require_POST
+def words_list(request):
+    """Add many words at once from pasted text; words the user already has are skipped."""
+    language = get_object_or_404(Language, code=current_language(request))
+    form = WordListForm(request.POST, decks=user_decks(request.user, language))
+    if not form.is_valid():
+        messages.error(request, 'Не удалось добавить: проверьте список и выбранную группу.')
+        return redirect('web:words')
+    parsed = parse_word_list(form.cleaned_data['text'], form.cleaned_data['part_of_speech'])
+    if not parsed:
+        messages.error(request, 'В тексте не нашлось строк вида «слово — перевод».')
+        return redirect('web:words')
+
+    deck = form.cleaned_data['deck']
+    existing = {w.lower() for w in Word.objects.filter(owner=request.user, language=language).values_list('text', flat=True)}
+    added = []
+    for text, translation, part_of_speech in parsed:
+        if text.lower() in existing:
+            continue
+        existing.add(text.lower())
+        word = Word.objects.create(
+            owner=request.user, language=language, text=text, translation=translation,
+            part_of_speech=part_of_speech, level=form.cleaned_data['level'],
+        )
+        word.decks.add(deck)
+        added.append(word)
+
+    skipped = len(parsed) - len(added)
+    if added:
+        log_activity(request, Action.WORD_ADD, f'списком {len(added)} слов в «{deck.name}»')
+    messages.success(request, f'Добавлено слов: {len(added)}' + (f', уже были: {skipped}' if skipped else '') + '.')
+    return redirect(f"{reverse('web:words')}?deck={deck.pk}")
 
 
 @login_required

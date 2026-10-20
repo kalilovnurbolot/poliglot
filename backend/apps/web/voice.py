@@ -8,6 +8,7 @@ proxy rule for voice: it works wherever the site itself works, over HTTP or HTTP
 import hashlib
 import hmac
 import json
+import re
 import time
 
 from django.conf import settings
@@ -19,6 +20,10 @@ SAMPLE_RATE = 16000
 MAX_SECONDS = 10
 MAX_BYTES = SAMPLE_RATE * 2 * MAX_SECONDS
 CHUNK_BYTES = SAMPLE_RATE * 2 // 4
+# Languages the voice service has models for (VOICE_LANGUAGES in voice/Dockerfile).
+LANGUAGES = ('ru', 'en', 'de')
+MAX_HINTS = 50
+MAX_HINT_LENGTH = 100
 
 
 class VoiceUnavailable(Exception):
@@ -39,12 +44,31 @@ def voice_config():
     return {'url': reverse('web:voice-recognize')}
 
 
-def recognize(user, pcm, grammar=None):
-    """Text of one phrase: `pcm` is mono 16 kHz signed 16-bit audio."""
+def clean_hints(hints):
+    """Expected phrases as the voice service takes them: lowercase words, no punctuation."""
+    cleaned = []
+    for hint in hints:
+        words = re.findall(r"[^\W_]+(?:'[^\W_]+)?", str(hint)[:MAX_HINT_LENGTH].lower().replace('’', "'"))
+        if words and ' '.join(words) not in cleaned:
+            cleaned.append(' '.join(words))
+    return cleaned[:MAX_HINTS]
+
+
+def recognize(user, pcm, grammar=None, language='ru', details=False, hints=None):
+    """One phrase: `pcm` is mono 16 kHz signed 16-bit audio -> {"text": ...}.
+
+    With `details` the result also has "words": [{"word", "conf", "start", "end"}] and keeps
+    low-confidence words, so the caller can judge pronunciation itself. `hints` are the
+    phrases the page expects; when one of them was clearly said but free recognition
+    misheard it, the result has it as "alternative".
+    """
     url = f'{settings.VOICE_SERVICE_URL}?token={voice_token(user)}'
+    config = {'grammar': grammar, 'language': language, 'details': details}
+    if hints:
+        config['hints'] = clean_hints(hints)
     try:
         with connect(url, open_timeout=3, close_timeout=1) as ws:
-            ws.send(json.dumps({'grammar': grammar}))
+            ws.send(json.dumps(config))
             for start in range(0, len(pcm), CHUNK_BYTES):
                 ws.send(pcm[start:start + CHUNK_BYTES])
             ws.send(json.dumps({'eof': True}))
@@ -54,6 +78,11 @@ def recognize(user, pcm, grammar=None):
                 if message.get('text'):
                     texts.append(message['text'])
                 if message.get('final'):
-                    return ' '.join(texts)
+                    result = {'text': ' '.join(texts)}
+                    if details:
+                        result['words'] = message.get('words', [])
+                    if message.get('alternative'):
+                        result['alternative'] = message['alternative']
+                    return result
     except (OSError, TimeoutError, WebSocketException, ValueError) as e:
         raise VoiceUnavailable from e

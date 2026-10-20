@@ -1,0 +1,274 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}{{ mission.title }} · Полиглот{% endblock %}
+
+{% block head %}
+<style>
+  /* The character: breathes, blinks, nods when understood, frowns when not (mission.js). */
+  #npc { animation: npc-breathe 4s ease-in-out infinite; }
+  #npc-eyes { transform-box: fill-box; transform-origin: center; animation: npc-blink 4.5s infinite; }
+  #npc-head, #npc-brows { transition: transform .25s; }
+  .npc-nod #npc-head { animation: npc-nod .7s ease-in-out; }
+  .npc-confused #npc-brows { transform: translateY(-5px); }
+  .npc-confused #npc-head { transform: rotate(-4deg); transform-origin: 200px 160px; }
+  [data-item] { transition: opacity .4s, transform .4s; }
+  [data-item].is-hidden { opacity: 0; transform: translateY(-14px); }
+  @keyframes npc-breathe { 50% { transform: translateY(1.5px); } }
+  @keyframes npc-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  @keyframes npc-nod { 30% { transform: translateY(5px); } 60% { transform: translateY(-1px); } }
+  @media (prefers-reduced-motion: reduce) { #npc, #npc-eyes, .npc-nod #npc-head { animation: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6">
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="min-w-0 text-xl font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ mission.title }}</h1>
+    <a href="{% url 'web:missions' %}" class="shrink-0 text-sm text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">← К карте</a>
+  </div>
+
+  <div class="card flex flex-col gap-3 p-4">
+    {% if mission.teaser %}<p class="text-sm text-zinc-500 italic">{{ mission.teaser }}</p>{% endif %}
+    <p class="text-sm text-zinc-700 dark:text-zinc-300">{{ mission.briefing }}</p>
+    {% if mission.target_words %}
+      <div class="flex flex-wrap gap-1.5">
+        {% for word in mission.target_words %}
+          <span class="pill inline-flex items-center gap-1" data-target-word="{{ word }}"><span data-tick class="hidden">{% include "web/partials/icon.html" with name="check" class="h-3.5 w-3.5" %}</span>{{ word }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  {# The scene as the player sees it: shelves behind the character, the counter in front, the player's own hands at the bottom. #}
+  <div class="card relative overflow-hidden p-0">
+    <svg id="scene" class="block h-auto w-full" viewBox="0 0 400 260" role="img" aria-label="{{ mission.get_scene_display }}: {{ mission.npc_name }}"
+         {% if mission.scene == "cafe" %}style="--wall:#f1e4d6;--shelf:#6b4f3a;--counter:#4a3426;--counter-top:#7a5a44;--shirt:#e2e8f0;--apron:#7c2d12"
+         {% elif mission.scene == "bakery" %}style="--wall:#fbefd6;--shelf:#a16207;--counter:#92400e;--counter-top:#c2773a;--shirt:#f8fafc;--apron:#e7e5e4"
+         {% elif mission.scene == "airport" %}style="--wall:#dbe7f3;--shelf:#7b8794;--counter:#3b4a5c;--counter-top:#64748b;--shirt:#1e3a8a;--apron:#1e40af"
+         {% elif mission.scene == "hotel" %}style="--wall:#f6ead2;--shelf:#8a5a2b;--counter:#5c3a1e;--counter-top:#a0682f;--shirt:#f8fafc;--apron:#1f2937"
+         {% elif mission.scene == "police" %}style="--wall:#dfe3e8;--shelf:#4b5563;--counter:#1f2937;--counter-top:#374151;--shirt:#cbd5e1;--apron:#1e293b"
+         {% elif mission.scene == "museum" %}style="--wall:#efe9df;--shelf:#b8a98f;--counter:#4b443c;--counter-top:#78706a;--shirt:#111827;--apron:#1f2937"
+         {% else %}style="--wall:#e2edf5;--shelf:#9c7a5b;--counter:#5b6b7a;--counter-top:#8494a3;--shirt:#f1f5f9;--apron:#2f855a"{% endif %}>
+      <defs>
+        <symbol id="i-bottle" viewBox="0 0 12 30"><rect x="4" y="0" width="4" height="6" rx="1"/><rect x="1" y="6" width="10" height="24" rx="3"/></symbol>
+        <symbol id="i-box" viewBox="0 0 20 24"><rect width="20" height="24" rx="2"/><rect x="3" y="7" width="14" height="5" fill="#fff" opacity=".55"/></symbol>
+        <symbol id="i-cup" viewBox="0 0 22 20"><path d="M2 2h14v11a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5z"/><path d="M16 5h2a3 3 0 0 1 0 6h-2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+        <symbol id="i-loaf" viewBox="0 0 34 18"><ellipse cx="17" cy="10" rx="17" ry="8"/><path d="M9 6l3 6M16 4l3 7M23 5l3 6" stroke="#fff" stroke-width="1.5" opacity=".5"/></symbol>
+        <symbol id="i-bun" viewBox="0 0 20 14"><ellipse cx="10" cy="8" rx="10" ry="6"/><path d="M5 6q5-4 10 0" stroke="#fff" stroke-width="1.2" fill="none" opacity=".5"/></symbol>
+      </defs>
+
+      <rect width="400" height="260" fill="var(--wall)"/>
+      <rect x="0" y="0" width="400" height="10" fill="#000" opacity=".05"/>
+
+      {# Shelves with goods #}
+      <g>
+        <rect x="16" y="68" width="368" height="6" rx="2" fill="var(--shelf)"/>
+        <rect x="16" y="128" width="368" height="6" rx="2" fill="var(--shelf)"/>
+        {% if mission.scene == "cafe" %}
+          <g color="#e7e5e4">
+            <use href="#i-cup" x="30" y="48" width="22" height="20" fill="#fafaf9"/>
+            <use href="#i-cup" x="56" y="48" width="22" height="20" fill="#fde68a"/>
+            <use href="#i-cup" x="82" y="48" width="22" height="20" fill="#fafaf9"/>
+            <use href="#i-cup" x="296" y="48" width="22" height="20" fill="#bfdbfe"/>
+            <use href="#i-cup" x="322" y="48" width="22" height="20" fill="#fafaf9"/>
+            <use href="#i-cup" x="348" y="48" width="22" height="20" fill="#fecaca"/>
+          </g>
+          <rect x="300" y="84" width="62" height="44" rx="5" fill="#334155"/>
+          <rect x="308" y="92" width="20" height="10" rx="2" fill="#94a3b8"/>
+          <circle cx="348" cy="97" r="5" fill="#ef4444"/>
+          <rect x="318" y="108" width="6" height="10" fill="#1e293b"/>
+          <use href="#i-box" x="30" y="102" width="20" height="26" fill="#a16207"/>
+          <use href="#i-box" x="54" y="102" width="20" height="26" fill="#78350f"/>
+          <use href="#i-box" x="78" y="102" width="20" height="26" fill="#a16207"/>
+        {% elif mission.scene == "bakery" %}
+          <g fill="#c2773a">
+            <use href="#i-loaf" x="26" y="50" width="34" height="18"/>
+            <use href="#i-loaf" x="64" y="50" width="34" height="18" fill="#a85d24"/>
+            <use href="#i-loaf" x="102" y="50" width="34" height="18"/>
+            <use href="#i-loaf" x="264" y="50" width="34" height="18" fill="#a85d24"/>
+            <use href="#i-loaf" x="302" y="50" width="34" height="18"/>
+            <use href="#i-loaf" x="340" y="50" width="34" height="18" fill="#a85d24"/>
+          </g>
+          <g fill="#e0a060">
+            {% for x in "123456" %}<use href="#i-bun" x="{% widthratio forloop.counter0 1 20 %}" y="114" width="20" height="14" transform="translate(26 0)"/>{% endfor %}
+            {% for x in "123456" %}<use href="#i-bun" x="{% widthratio forloop.counter0 1 20 %}" y="114" width="20" height="14" transform="translate(254 0)"/>{% endfor %}
+          </g>
+        {% elif mission.scene == "airport" %}
+          {# Departures board and suitcases #}
+          <rect x="24" y="18" width="130" height="46" rx="3" fill="#111827"/>
+          <g fill="#facc15">{% for y in "123" %}<rect x="32" y="{% widthratio forloop.counter 1 12 %}" width="{% cycle '86' '70' '96' %}" height="5" rx="1" transform="translate(0 16)"/>{% endfor %}</g>
+          <rect x="128" y="28" width="18" height="5" rx="1" fill="#f87171"/>
+          <rect x="246" y="18" width="130" height="46" rx="3" fill="#111827"/>
+          <g fill="#facc15">{% for y in "123" %}<rect x="254" y="{% widthratio forloop.counter 1 12 %}" width="{% cycle '74' '96' '60' %}" height="5" rx="1" transform="translate(0 16)"/>{% endfor %}</g>
+          <g><rect x="30" y="96" width="24" height="32" rx="4" fill="#ef4444"/><rect x="38" y="90" width="8" height="6" rx="2" fill="none" stroke="#7f1d1d" stroke-width="2"/></g>
+          <g><rect x="60" y="104" width="28" height="24" rx="4" fill="#0ea5e9"/><rect x="69" y="98" width="10" height="6" rx="2" fill="none" stroke="#075985" stroke-width="2"/></g>
+          <g><rect x="306" y="100" width="22" height="28" rx="4" fill="#a3a3a3"/><rect x="313" y="94" width="8" height="6" rx="2" fill="none" stroke="#525252" stroke-width="2"/></g>
+          <g><rect x="334" y="94" width="30" height="34" rx="4" fill="#16a34a"/><rect x="344" y="88" width="10" height="6" rx="2" fill="none" stroke="#14532d" stroke-width="2"/></g>
+        {% elif mission.scene == "hotel" %}
+          {# Key board and a clock #}
+          <rect x="26" y="20" width="120" height="100" rx="4" fill="#7c4a1e"/>
+          {% for row in "123" %}{% for col in "1234" %}
+            <g transform="translate({% widthratio forloop.counter 1 26 %} {% widthratio forloop.parentloop.counter 1 30 %})">
+              <circle cx="14" cy="0" r="2.5" fill="#fde68a"/><rect x="12" y="2" width="4" height="12" rx="1" fill="#fbbf24"/>
+            </g>
+          {% endfor %}{% endfor %}
+          <circle cx="330" cy="44" r="22" fill="#fffbeb" stroke="#8a5a2b" stroke-width="4"/>
+          <path d="M330 44V30M330 44l10 6" stroke="#1f2937" stroke-width="3" stroke-linecap="round"/>
+          <rect x="286" y="96" width="80" height="32" rx="3" fill="#fde68a" opacity=".6"/>
+          <g data-item="2" class="is-hidden"><rect x="300" y="186" width="44" height="22" rx="2" fill="#fefce8" stroke="#a16207"/><path d="M300 186l22 12 22-12" fill="none" stroke="#a16207"/></g>
+        {% elif mission.scene == "police" %}
+          {# Wanted posters #}
+          {% for x in "12" %}
+            <g transform="translate({% if forloop.first %}36{% else %}292{% endif %} 16)">
+              <rect width="72" height="96" rx="2" fill="#fef3c7" stroke="#a16207"/>
+              <text x="36" y="16" font-size="12" font-weight="700" text-anchor="middle" fill="#7c2d12">WANTED</text>
+              <circle cx="36" cy="48" r="14" fill="#57534e"/>
+              <path d="M14 82c2-14 10-20 22-20s20 6 22 20z" fill="{% if forloop.first %}#57534e{% else %}#15803d{% endif %}"/>
+              {% if forloop.first %}<path d="M20 38h32l-4-12H24z" fill="#111827"/>{% endif %}
+              <text x="36" y="93" font-size="10" text-anchor="middle" fill="#7c2d12">???</text>
+            </g>
+          {% endfor %}
+          <rect x="150" y="94" width="26" height="34" rx="2" fill="#94a3b8"/><rect x="226" y="94" width="26" height="34" rx="2" fill="#94a3b8"/>
+          <g data-item="2" class="is-hidden"><rect x="268" y="184" width="36" height="24" rx="4" fill="#111827"/><circle cx="286" cy="196" r="7" fill="#475569" stroke="#cbd5e1" stroke-width="2"/></g>
+        {% elif mission.scene == "museum" %}
+          {# Paintings and the diamond #}
+          <rect x="30" y="18" width="70" height="50" fill="#3b82f6" stroke="#b45309" stroke-width="6"/>
+          <path d="M34 62l20-22 14 14 10-8 18 16z" fill="#15803d"/>
+          <rect x="300" y="18" width="70" height="50" fill="#fde68a" stroke="#b45309" stroke-width="6"/>
+          <circle cx="335" cy="40" r="12" fill="#f97316"/>
+          <rect x="34" y="84" width="40" height="44" fill="#e7e5e4" stroke="#b45309" stroke-width="4"/>
+          <rect x="318" y="88" width="56" height="40" rx="3" fill="#bae6fd" opacity=".6" stroke="#94a3b8"/>
+          <path d="M346 96l10 10-10 14-10-14z" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+        {% else %}
+          <use href="#i-bottle" x="28" y="38" width="12" height="30" fill="#60a5fa"/>
+          <use href="#i-bottle" x="44" y="38" width="12" height="30" fill="#f8fafc"/>
+          <use href="#i-bottle" x="60" y="38" width="12" height="30" fill="#60a5fa"/>
+          <use href="#i-bottle" x="76" y="38" width="12" height="30" fill="#f8fafc"/>
+          <use href="#i-box" x="98" y="44" width="20" height="24" fill="#f59e0b"/>
+          <use href="#i-box" x="122" y="44" width="20" height="24" fill="#ef4444"/>
+          <use href="#i-box" x="262" y="44" width="20" height="24" fill="#10b981"/>
+          <use href="#i-box" x="286" y="44" width="20" height="24" fill="#8b5cf6"/>
+          <use href="#i-bottle" x="312" y="38" width="12" height="30" fill="#34d399"/>
+          <use href="#i-bottle" x="328" y="38" width="12" height="30" fill="#fbbf24"/>
+          <use href="#i-bottle" x="344" y="38" width="12" height="30" fill="#34d399"/>
+          <use href="#i-bottle" x="360" y="38" width="12" height="30" fill="#fbbf24"/>
+          <use href="#i-loaf" x="28" y="110" width="34" height="18" fill="#c2773a"/>
+          <use href="#i-loaf" x="66" y="110" width="34" height="18" fill="#a85d24"/>
+          <use href="#i-box" x="106" y="104" width="20" height="24" fill="#f8fafc"/>
+          <use href="#i-box" x="130" y="104" width="20" height="24" fill="#f8fafc"/>
+          <use href="#i-box" x="262" y="104" width="20" height="24" fill="#fb7185"/>
+          <use href="#i-box" x="286" y="104" width="20" height="24" fill="#fb7185"/>
+          <use href="#i-bottle" x="314" y="98" width="12" height="30" fill="#f87171"/>
+          <use href="#i-bottle" x="330" y="98" width="12" height="30" fill="#f87171"/>
+          <use href="#i-bottle" x="346" y="98" width="12" height="30" fill="#a3e635"/>
+        {% endif %}
+      </g>
+
+      {# The character #}
+      <g id="npc">
+        <path d="M136 260C136 206 158 182 200 182s64 24 64 78z" fill="var(--shirt)"/>
+        <path d="M166 206h68l6 54h-80z" fill="var(--apron)"/>
+        <path d="M176 206l-6-22M224 206l6-22" stroke="var(--apron)" stroke-width="4"/>
+        <rect x="190" y="156" width="20" height="28" rx="6" fill="#e0ac69"/>
+        <g id="npc-head">
+          <ellipse cx="200" cy="126" rx="34" ry="38" fill="#f1c27d"/>
+          <ellipse cx="166" cy="130" rx="5" ry="8" fill="#e0ac69"/>
+          <ellipse cx="234" cy="130" rx="5" ry="8" fill="#e0ac69"/>
+          <path d="M166 124c-2-32 16-40 34-40 20 0 38 10 34 40-6-18-20-24-34-24-16 0-28 8-34 24z" fill="#4a3728"/>
+          {% if mission.scene == "bakery" %}
+            <path d="M170 98c-12-24 12-32 20-22 4-16 22-14 22 0 12-10 30 2 18 22z" fill="#fff" stroke="#e7e5e4" stroke-width="2"/>
+          {% elif mission.scene == "cafe" and mission.npc_name == "Незнакомец в шляпе" %}
+            <path d="M172 100c2-22 14-28 28-28s26 6 28 28z" fill="#111827"/>
+            <rect x="150" y="96" width="100" height="8" rx="4" fill="#111827"/>
+          {% elif mission.scene == "cafe" %}
+            <path d="M168 104c4-18 20-26 32-26s28 8 32 26z" fill="#7c2d12"/>
+            <rect x="164" y="100" width="72" height="6" rx="3" fill="#5a1f0c"/>
+          {% elif mission.scene == "police" or mission.scene == "museum" or mission.scene == "airport" %}
+            <path d="M166 104c2-18 18-26 34-26s32 8 34 26z" fill="{% if mission.scene == 'museum' %}#1f2937{% else %}#1e3a8a{% endif %}"/>
+            <rect x="160" y="98" width="80" height="9" rx="3" fill="#111827"/>
+            <circle cx="200" cy="90" r="5" fill="#facc15"/>
+          {% endif %}
+          <g id="npc-brows" stroke="#4a3728" stroke-width="2.5" stroke-linecap="round" fill="none">
+            <path d="M179 114q7-4 13 0"/><path d="M208 114q7-4 13 0"/>
+          </g>
+          <g id="npc-eyes" fill="#1f2937">
+            <ellipse cx="186" cy="125" rx="3.5" ry="4.5"/><ellipse cx="214" cy="125" rx="3.5" ry="4.5"/>
+          </g>
+          <circle cx="178" cy="139" r="5" fill="#f87171" opacity=".25"/>
+          <circle cx="222" cy="139" r="5" fill="#f87171" opacity=".25"/>
+          <path d="M199 128q-3 6 1 8" stroke="#c98b4f" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path id="npc-mouth" d="M189 145Q200 150 211 145Q200 147 189 145Z" fill="#8b2c2c" stroke="#8b2c2c" stroke-width="2" stroke-linejoin="round"/>
+        </g>
+      </g>
+
+      {# Counter and what was bought, revealed step by step #}
+      <rect x="0" y="206" width="400" height="10" fill="var(--counter-top)"/>
+      <rect x="0" y="216" width="400" height="44" fill="var(--counter)"/>
+      {% if mission.scene == "cafe" %}
+        <g data-item="1" class="is-hidden" color="#e7e5e4"><use href="#i-cup" x="120" y="178" width="34" height="30" fill="#fafaf9"/></g>
+        <g data-item="3" class="is-hidden"><path d="M262 206l36-22 4 22z" fill="#fde68a"/><path d="M262 206l36-22 4 6-38 20z" fill="#be185d"/></g>
+      {% elif mission.scene == "bakery" %}
+        <g data-item="1" class="is-hidden"><use href="#i-loaf" x="110" y="184" width="50" height="24" fill="#c2773a"/></g>
+        <g data-item="2" class="is-hidden" fill="#e0a060"><use href="#i-bun" x="250" y="190" width="28" height="18"/><use href="#i-bun" x="280" y="190" width="28" height="18"/></g>
+      {% else %}
+        <g data-item="1" class="is-hidden"><use href="#i-loaf" x="110" y="184" width="50" height="24" fill="#c2773a"/></g>
+        <g data-item="2" class="is-hidden"><path d="M262 176l8-8h16l8 8v32h-32z" fill="#f8fafc" stroke="#cbd5e1"/><rect x="262" y="186" width="32" height="10" fill="#3b82f6"/></g>
+      {% endif %}
+
+      {# The player's hands #}
+      <path d="M0 260v-26c22-8 46-6 62 6l8 20z" fill="#4f46e5"/>
+      <ellipse cx="78" cy="242" rx="24" ry="13" fill="#f1c27d" transform="rotate(-14 78 242)"/>
+      <path d="M400 260v-26c-22-8-46-6-62 6l-8 20z" fill="#4f46e5"/>
+      <ellipse cx="322" cy="242" rx="24" ry="13" fill="#f1c27d" transform="rotate(14 322 242)"/>
+    </svg>
+
+    {# Subtitles over the scene #}
+    <div id="subtitle" class="pointer-events-none absolute inset-x-3 top-3 hidden rounded-xl bg-white/90 px-4 py-2 shadow-sm dark:bg-zinc-900/90">
+      <p class="text-xs font-medium text-zinc-500">{{ mission.npc_name }}</p>
+      <p id="subtitle-text" class="font-semibold text-zinc-900 dark:text-zinc-50"></p>
+      <p id="subtitle-ru" class="text-sm text-zinc-500"></p>
+    </div>
+
+    <div id="start-overlay" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40 p-4 text-center">
+      <button type="button" id="start" class="btn btn-primary px-6 py-2.5">Начать миссию</button>
+      <p class="text-sm text-white">Включите звук{% if config.voice %} и разрешите микрофон{% endif %}.</p>
+    </div>
+  </div>
+
+  <div id="controls" class="card hidden flex-col gap-3 p-4">
+    <div class="flex items-center justify-between gap-3 text-sm">
+      <p><span class="text-zinc-500">Задача:</span> <span id="goal" class="font-medium text-zinc-900 dark:text-zinc-50"></span></p>
+      <p class="shrink-0 text-zinc-500">Шаг <span id="step-index">1</span> из {{ config.stepCount }}</p>
+    </div>
+
+    {% if config.voice %}
+      <div class="flex flex-col items-center gap-2">
+        <button type="button" id="mic" aria-pressed="false" aria-label="Говорить"
+                class="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-white transition-colors hover:bg-indigo-700 disabled:opacity-40 aria-pressed:bg-red-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:aria-pressed:bg-red-500">{% include "web/partials/icon.html" with name="mic" class="h-7 w-7" %}</button>
+        <p id="mic-status" class="text-xs text-zinc-500" aria-live="polite">Нажмите и скажите ответ</p>
+      </div>
+    {% endif %}
+
+    <form id="text-form" class="flex gap-2">
+      <input id="text-answer" class="input min-w-0 flex-1" autocomplete="off" placeholder="{% if config.voice %}…или напишите ответ{% else %}Напишите ответ{% endif %}" maxlength="500">
+      <button type="submit" class="btn btn-secondary" aria-label="Отправить">{% include "web/partials/icon.html" with name="send" class="h-4 w-4" %}</button>
+    </form>
+
+    <p id="feedback" class="hidden text-sm" aria-live="polite"></p>
+    <div id="hint" class="hidden flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+      <span>Подсказка: «<span id="hint-text"></span>»</span>
+      <button type="button" id="skip" class="btn btn-ghost !px-0 text-sm">Пропустить шаг</button>
+    </div>
+  </div>
+
+  <ol id="dialog" class="flex flex-col gap-2 text-sm"></ol>
+
+  {{ config|json_script:"mission-config" }}
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% if config.voice %}<script src="{% static 'web/js/voice.js' %}" data-worklet="{% static 'web/js/voice-worklet.js' %}"></script>{% endif %}
+<script src="{% static 'web/js/mission.js' %}"></script>
+{% endblock %}

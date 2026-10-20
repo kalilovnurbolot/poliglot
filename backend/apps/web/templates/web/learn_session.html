@@ -12,6 +12,11 @@
 
   <p id="learn-error" class="hidden text-sm text-red-600"></p>
 
+  <div id="learn-direction" class="mb-2 flex gap-2" role="group" aria-label="Направление">
+    <button type="button" data-direction="forward" class="pill">{{ language|upper }} → RU</button>
+    <button type="button" data-direction="reverse" class="pill">RU → {{ language|upper }}</button>
+  </div>
+
   <div id="learn-stage" class="relative flex h-96 w-full max-w-sm items-center justify-center sm:h-[26rem] sm:w-80">
     <div class="pointer-events-none absolute inset-x-0 -top-6 flex justify-center gap-6 text-xs text-zinc-400">
       <span>← не знаю</span>
@@ -30,6 +35,7 @@
       </div>
       <div id="card-back" class="hidden flex-col items-center gap-3">
         <p id="card-translation" class="break-words font-semibold leading-snug text-zinc-900 dark:text-zinc-50"></p>
+        <p id="card-back-transcription" class="text-zinc-500"></p>
         <p id="card-example" class="text-sm text-zinc-500 italic"></p>
       </div>
     </div>

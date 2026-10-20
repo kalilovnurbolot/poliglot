@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.vocabulary',
     'apps.grammar',
     'apps.quizzes',
+    'apps.missions',
     'apps.web',
 ]
 
@@ -100,6 +101,15 @@ GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 # Empty = voice control is hidden. VOICE_SECRET must match the voice service's one.
 VOICE_SERVICE_URL = env('VOICE_SERVICE_URL', default='')
 VOICE_SECRET = env('VOICE_SECRET', default='')
+# Grammar check of mission answers: address of the `grammar` service (LanguageTool),
+# e.g. http://grammar:8010. Empty = answers are judged without it.
+GRAMMAR_SERVICE_URL = env('GRAMMAR_SERVICE_URL', default='')
+# Meaning of mission answers: address of the `meaning` service, e.g. http://meaning:8020.
+# Empty = answers are accepted by keywords only.
+MEANING_SERVICE_URL = env('MEANING_SERVICE_URL', default='')
+# Pronunciation of mission answers: address of the `pronounce` service, e.g.
+# http://pronounce:8030. Empty = pronunciation is judged by recognition confidence only.
+PRONOUNCE_SERVICE_URL = env('PRONOUNCE_SERVICE_URL', default='')
 
 # Folder shared with the `backup` service (docker-compose*.yml): the admin panel lists,
 # downloads and restores database versions there. Empty = the «База данных» tab is off.

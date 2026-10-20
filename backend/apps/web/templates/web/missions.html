@@ -1,0 +1,204 @@
+{% extends "web/base.html" %}
+
+{% block title %}Миссии · Полиглот{% endblock %}
+
+{% block head %}
+<style>
+  /* The mission map: a small town drawn in SVG, chapters pinned on it (mission_views.missions). */
+  .mission-map {
+    --map-land: #eef3e2; --map-block: #dde3cf; --map-road: #ffffff; --map-water: #b9d8ef; --map-water-ink: #5b8fb9;
+    --map-park: #cde4b3; --map-tree: #93c26f; --map-ink: #6b7280; --map-fog: #ffffff; --map-runway: #a3acb9;
+    --map-label: rgb(255 255 255 / .92); --map-label-ink: #18181b;
+    --pin-done: var(--color-emerald-600, #059669); --pin-current: var(--color-indigo-600, #4f46e5); --pin-locked: #9ca3af;
+    position: relative;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .mission-map {
+      --map-land: #172016; --map-block: #212b20; --map-road: #2c382b; --map-water: #18324a; --map-water-ink: #5b8fb9;
+      --map-park: #1d331c; --map-tree: #2d5629; --map-ink: #9ca3af; --map-fog: #3a463a; --map-runway: #3f4a57;
+      --map-label: rgb(24 24 27 / .92); --map-label-ink: #f4f4f5; --pin-locked: #52525b;
+    }
+  }
+  :root[data-theme="dark"] .mission-map {
+    --map-land: #172016; --map-block: #212b20; --map-road: #2c382b; --map-water: #18324a; --map-water-ink: #5b8fb9;
+    --map-park: #1d331c; --map-tree: #2d5629; --map-ink: #9ca3af; --map-fog: #3a463a; --map-runway: #3f4a57;
+    --map-label: rgb(24 24 27 / .92); --map-label-ink: #f4f4f5; --pin-locked: #52525b;
+  }
+
+  .map-pin {
+    --dot: 36px;
+    position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transform: translate(-50%, calc(var(--dot) / -2)); background: none; border: 0; padding: 0; cursor: pointer;
+  }
+  .map-pin-dot {
+    position: relative; display: grid; place-items: center; width: var(--dot); height: var(--dot); border-radius: 999px;
+    background: var(--pin); color: #fff; font-size: 14px; font-weight: 700;
+    box-shadow: 0 0 0 3px var(--map-land), 0 4px 10px rgb(0 0 0 / .25); transition: transform .2s;
+  }
+  .map-pin.is-done { --pin: var(--pin-done); }
+  .map-pin.is-current { --pin: var(--pin-current); }
+  .map-pin.is-locked { --pin: var(--pin-locked); }
+  .map-pin:hover .map-pin-dot, .map-pin:focus-visible .map-pin-dot { transform: scale(1.1); }
+  .map-pin[aria-pressed="true"] .map-pin-dot { transform: scale(1.18); box-shadow: 0 0 0 3px var(--map-land), 0 0 0 6px var(--pin), 0 6px 14px rgb(0 0 0 / .3); }
+  .map-pin.is-current .map-pin-dot::before {
+    content: ""; position: absolute; inset: -3px; border-radius: inherit; border: 3px solid var(--pin);
+    animation: map-pulse 1.8s ease-out infinite;
+  }
+  .map-pin-label {
+    max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 2px 7px; border-radius: 6px; background: var(--map-label); color: var(--map-label-ink);
+    font-size: 11px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .15);
+  }
+  .map-pin.is-locked .map-pin-label { opacity: .75; letter-spacing: .1em; }
+  @media (max-width: 639px) {
+    .map-pin { --dot: 30px; }
+    .map-pin:not([aria-pressed="true"]) .map-pin-label { display: none; }
+  }
+  .chapter-teaser { border-left: 2px solid var(--color-indigo-600, #4f46e5); padding-left: 12px; }
+  @keyframes map-pulse { from { transform: scale(1); opacity: .8; } to { transform: scale(1.8); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .map-pin.is-current .map-pin-dot::before { animation: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+  <div>
+    <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Миссии</h1>
+    <p class="mt-1 text-zinc-500">Каждая точка на карте — глава истории. Поговорите с персонажем голосом, пройдите главу, и откроется следующая.</p>
+  </div>
+
+  {% if missions %}
+    <div class="mission-map card overflow-hidden p-0">
+      <svg class="block h-auto w-full" viewBox="0 0 400 300" aria-hidden="true">
+        <defs>
+          <filter id="map-fog-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+        </defs>
+        <rect width="400" height="300" fill="var(--map-land)"/>
+
+        {# Blocks of houses #}
+        <g fill="var(--map-block)">
+          <rect x="110" y="20" width="44" height="30" rx="4"/><rect x="164" y="34" width="30" height="22" rx="4"/>
+          <rect x="226" y="18" width="40" height="34" rx="4"/><rect x="276" y="30" width="26" height="40" rx="4"/>
+          <rect x="22" y="196" width="34" height="26" rx="4"/><rect x="84" y="222" width="30" height="34" rx="4"/>
+          <rect x="140" y="236" width="20" height="44" rx="4"/><rect x="258" y="176" width="34" height="24" rx="4"/>
+          <rect x="350" y="186" width="34" height="26" rx="4"/><rect x="292" y="246" width="38" height="36" rx="4"/>
+          <rect x="356" y="236" width="30" height="30" rx="4"/><rect x="190" y="170" width="30" height="22" rx="4"/>
+        </g>
+
+        {# Park #}
+        <ellipse cx="215" cy="252" rx="56" ry="30" fill="var(--map-park)"/>
+        <g fill="var(--map-tree)">
+          <circle cx="182" cy="248" r="7"/><circle cx="196" cy="262" r="6"/><circle cx="214" cy="244" r="8"/>
+          <circle cx="232" cy="262" r="6"/><circle cx="248" cy="248" r="7"/><circle cx="228" cy="236" r="5"/>
+        </g>
+
+        {# Streets #}
+        <g stroke="var(--map-road)" stroke-width="7" stroke-linecap="round" fill="none">
+          <path d="M0 212H400"/><path d="M204 0V300"/><path d="M96 0Q110 110 60 300"/><path d="M300 0Q290 160 340 300"/>
+        </g>
+
+        {# River with two bridges #}
+        <path d="M-10 132C60 122 100 150 160 140S250 98 300 108S370 138 410 122" stroke="var(--map-water)" stroke-width="20" fill="none" stroke-linecap="round"/>
+        <g fill="var(--map-road)" stroke="var(--map-ink)" stroke-opacity=".35">
+          <rect x="198" y="108" width="12" height="34" rx="2"/><rect x="294" y="92" width="12" height="34" rx="2"/>
+        </g>
+        <text x="40" y="118" fill="var(--map-water-ink)" font-size="10" font-style="italic" transform="rotate(-6 40 118)">река</text>
+
+        {# Airport #}
+        <g transform="rotate(-10 52 34)">
+          <rect x="8" y="26" width="92" height="16" rx="3" fill="var(--map-runway)"/>
+          <path d="M16 34h76" stroke="var(--map-land)" stroke-width="2" stroke-dasharray="6 5"/>
+        </g>
+        <path transform="translate(-6 -52)" d="M118 66l10-3 4-8 3 1-2 8 8 3v3l-9-1-3 5h-3l1-6-9-1z" fill="var(--map-ink)" opacity=".6"/>
+
+        {# Compass #}
+        <g transform="translate(374 272)" fill="var(--map-ink)" opacity=".7">
+          <path d="M0-14l5 14-5-3-5 3z"/><text y="-17" font-size="9" text-anchor="middle" font-weight="700">N</text>
+        </g>
+
+        {# The road between chapters: the walked part solid #}
+        <polyline points="{{ road }}" fill="none" stroke="var(--map-ink)" stroke-opacity=".55" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round" stroke-linejoin="round"/>
+        {% if road_walked %}
+          <polyline points="{{ road_walked }}" fill="none" stroke="var(--pin-current)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+        {% endif %}
+
+        {# Fog over what is still locked #}
+        <g fill="var(--map-fog)" opacity=".75" filter="url(#map-fog-blur)">
+          {% for mission in missions %}{% if mission.locked %}
+            <circle cx="{% widthratio mission.x 1 4 %}" cy="{% widthratio mission.y 1 3 %}" r="30"/>
+          {% endif %}{% endfor %}
+        </g>
+      </svg>
+
+      {% for mission in missions %}
+        <button type="button" data-pin="{{ mission.pk }}" aria-controls="chapter-{{ mission.pk }}"
+                aria-pressed="{% if mission == selected %}true{% else %}false{% endif %}"
+                aria-label="Глава {{ mission.chapter }}: {% if mission.locked %}закрыта{% else %}{{ mission.title }}{% endif %}"
+                class="map-pin {% if mission.done %}is-done{% elif mission.current %}is-current{% else %}is-locked{% endif %}"
+                style="left: {{ mission.x }}%; top: {{ mission.y }}%">
+          <span class="map-pin-dot">
+            {% if mission.done %}{% include "web/partials/icon.html" with name="check" class="h-4 w-4" %}
+            {% elif mission.locked %}{% include "web/partials/icon.html" with name="lock" class="h-4 w-4" %}
+            {% else %}{{ mission.chapter }}{% endif %}
+          </span>
+          <span class="map-pin-label">{% if mission.locked %}???{% else %}{{ mission.title }}{% endif %}</span>
+        </button>
+      {% endfor %}
+    </div>
+
+    {% for mission in missions %}
+      <section id="chapter-{{ mission.pk }}" data-chapter="{{ mission.pk }}" class="card flex flex-col gap-3 p-5" {% if mission != selected %}hidden{% endif %}>
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Глава {{ mission.chapter }} · {{ mission.get_scene_display }}</p>
+            <h2 class="mt-1 text-lg font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ mission.title }}</h2>
+          </div>
+          <span class="pill shrink-0">{{ mission.level }}</span>
+        </div>
+
+        {% if mission.teaser %}
+          <p class="chapter-teaser text-zinc-700 italic dark:text-zinc-300">{{ mission.teaser }}</p>
+        {% endif %}
+
+        {% if mission.locked %}
+          <p class="flex items-center gap-2 text-sm text-zinc-500">
+            {% include "web/partials/icon.html" with name="lock" class="h-4 w-4" %}
+            Откроется после главы «{{ mission.previous.title }}».
+          </p>
+        {% else %}
+          <p class="text-sm text-zinc-500"><span class="font-medium text-zinc-700 dark:text-zinc-300">Задание:</span> {{ mission.briefing }}</p>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-1 text-amber-500" title="Лучший результат">
+              {% for i in "123" %}
+                {% if mission.best_stars and forloop.counter <= mission.best_stars %}
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                {% else %}
+                  <span class="text-zinc-300 dark:text-zinc-700">{% include "web/partials/icon.html" with name="star" class="h-4 w-4" %}</span>
+                {% endif %}
+              {% endfor %}
+              {% if not mission.done %}<span class="ml-1 text-xs text-zinc-500">ещё не пройдена</span>{% endif %}
+            </div>
+            <a href="{% url 'web:mission-play' mission.pk %}" class="btn {% if mission.done %}btn-secondary{% else %}btn-primary{% endif %}">
+              {% if mission.done %}Пройти ещё раз{% else %}Начать главу{% endif %}
+            </a>
+          </div>
+        {% endif %}
+      </section>
+    {% endfor %}
+  {% else %}
+    <p class="text-zinc-500">Для этого языка миссий пока нет.</p>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // A pin shows its chapter below the map.
+  document.querySelectorAll("[data-pin]").forEach((pin) =>
+    pin.addEventListener("click", () => {
+      document.querySelectorAll("[data-pin]").forEach((other) => other.setAttribute("aria-pressed", String(other === pin)));
+      document.querySelectorAll("[data-chapter]").forEach((chapter) => { chapter.hidden = chapter.dataset.chapter !== pin.dataset.pin; });
+      document.getElementById(`chapter-${pin.dataset.pin}`).scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }));
+</script>
+{% endblock %}

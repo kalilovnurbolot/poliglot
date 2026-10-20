@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -7,6 +8,7 @@ from django.urls import reverse
 
 from apps.core.models import Language
 from apps.grammar.models import GrammarProgress, GrammarRule
+from apps.missions.models import Mission
 from apps.users.models import ActivityLog, User
 from apps.vocabulary.models import Deck, Word
 from apps.vocabulary.queries import default_deck
@@ -108,6 +110,52 @@ class WebPagesTests(TestCase):
         connect.side_effect = OSError
         self.assertEqual(post(b'\0\0').status_code, 503)
 
+    @override_settings(VOICE_SERVICE_URL='ws://voice:2700/')
+    @patch('apps.web.voice.connect')
+    def test_voice_recognize_language_and_details(self, connect):
+        ws = connect.return_value.__enter__.return_value
+        words = [{'word': 'hello', 'conf': 0.91, 'start': 0.1, 'end': 0.5}]
+        ws.recv.side_effect = [json.dumps({'text': 'hello', 'final': True, 'words': words})]
+        post = lambda query: self.client.post(f'/voice/recognize/{query}', b'\0\0', content_type='application/octet-stream')
+        self.client.force_login(self.user)
+
+        self.assertEqual(post('?language=en&details=1').json(), {'text': 'hello', 'words': words})
+        self.assertEqual(json.loads(ws.send.call_args_list[0].args[0]), {'grammar': None, 'language': 'en', 'details': True})
+        self.assertEqual(post('?language=fr').status_code, 400)
+
+        sounds = {'score': 1.0, 'words': []}
+        with patch('apps.web.views.score_pronunciation', return_value=sounds) as score:
+            ws.recv.side_effect = [json.dumps({'text': 'hello', 'final': True, 'words': words})]
+            self.assertEqual(post('?language=en&details=1&pronounce=1').json()['pronunciation'], sounds)
+            score.assert_called_once_with(b'\0\0', 'hello', 'en')
+            ws.recv.side_effect = [json.dumps({'text': 'hello', 'final': True, 'words': words})]
+            self.assertNotIn('pronunciation', post('?language=en&details=1').json())
+
+    @override_settings(VOICE_SERVICE_URL='ws://voice:2700/')
+    @patch('apps.web.voice.connect')
+    def test_voice_recognize_hints(self, connect):
+        ws = connect.return_value.__enter__.return_value
+        post = lambda query: self.client.post(f'/voice/recognize/{query}', b'\0\0', content_type='application/octet-stream')
+        self.client.force_login(self.user)
+
+        ws.recv.side_effect = [json.dumps({'text': '', 'alternative': 'коза', 'final': True})]
+        self.assertEqual(post('?hint=Коза!&hint=не+знаю').json(), {'text': '', 'alternative': 'коза'})
+        self.assertEqual(json.loads(ws.send.call_args_list[0].args[0])['hints'], ['коза', 'не знаю'])
+
+        # In a mission the hints are the current step's answers, and an alternative that
+        # reaches the goal replaces free text that does not.
+        mission = Mission.objects.get(title='В магазине')
+        self.client.get(f'/missions/{mission.pk}/')
+        ws.send.reset_mock()
+        ws.recv.side_effect = [json.dumps({'text': 'hello can i have some bed', 'alternative': 'hello can i have some bread', 'final': True})]
+        self.assertEqual(post(f'?language=en&mission={mission.pk}&hint=ignored').json()['text'], 'hello can i have some bread')
+        hints = json.loads(ws.send.call_args_list[0].args[0])['hints']
+        self.assertIn('hello can i have some bread please', hints)
+        self.assertIn('loaf', hints)
+        self.assertNotIn('ignored', hints)
+        ws.recv.side_effect = [json.dumps({'text': 'some bread', 'alternative': 'i would like bread', 'final': True})]
+        self.assertEqual(post(f'?language=en&mission={mission.pk}').json()['text'], 'some bread')  # already reaches it
+
     def test_appearance_saved_in_account(self):
         post = lambda data: self.client.post('/appearance/', data, content_type='application/json')
         self.assertEqual(post({'hint_seen': True}).status_code, 302)  # login required
@@ -144,7 +192,10 @@ class WebPagesTests(TestCase):
             res = self.client.get(url)
             self.assertContains(res, 'Мои слова')
             self.assertContains(res, topic.name)
-        self.assertContains(self.client.get('/learn/A1/'), 'id="cards-data"')
+        session = self.client.get('/learn/A1/')
+        self.assertContains(session, 'id="cards-data"')
+        self.assertContains(session, 'EN → RU')
+        self.assertContains(session, 'RU → EN')
         self.assertContains(self.client.get(f'/learn/group/{topic.pk}/'), 'id="cards-data"')
         self.assertEqual(self.client.get('/learn/Z9/').status_code, 404)
         self.assertContains(self.client.get('/quiz/?level=A1&mode=listening'), 'id="quiz-data"')
@@ -434,3 +485,43 @@ class AdministrationTests(TestCase):
             self.assertEqual(len(list(folder.glob('*.sql.gz'))), 2)  # nothing left from failed uploads
             self.assertEqual(list(folder.glob('*.part')), [])
         self.assertEqual(ActivityLog.objects.filter(user=self.owner, action='backup_upload').count(), 2)
+
+
+class WordListTests(TestCase):
+    SAMPLE = (
+        '🧠 Verbs\n\n* achieve — достигать\n* encourage — поощрять, поддерживать\n'
+        '🌟 Adjectives\n\n* comfortable — удобный / чувствующий себя комфортно\n'
+        'Adverbs\n- quickly - быстро\n'
+        '🏠 Everyday vocabulary\n\n* to-do list: список дел\n* habit — привычка\nне слово\n'
+    )
+
+    def test_parse(self):
+        from .word_list import parse_word_list
+        self.assertEqual(parse_word_list(self.SAMPLE, 'noun'), [
+            ('achieve', 'достигать', 'verb'),
+            ('encourage', 'поощрять, поддерживать', 'verb'),
+            ('comfortable', 'удобный / чувствующий себя комфортно', 'adjective'),
+            ('quickly', 'быстро', 'adverb'),
+            ('to-do list', 'список дел', 'noun'),
+            ('habit', 'привычка', 'noun'),
+        ])
+
+    @override_settings(STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    })
+    def test_add_list(self):
+        user = User.objects.create_user(email='user@example.com', password='pass12345!x')
+        self.client.force_login(user)
+        deck = default_deck(user, Language.objects.get(code='en'))
+        post = lambda text: self.client.post('/words/list/', {'text': text, 'part_of_speech': 'noun', 'level': 'B1', 'deck': deck.pk}, follow=True)
+
+        self.assertContains(post(self.SAMPLE), 'Добавлено слов: 6.')
+        words = Word.objects.filter(owner=user)
+        self.assertEqual(words.count(), 6)
+        self.assertEqual(set(words.values_list('level', flat=True)), {'B1'})
+        self.assertEqual(deck.words.count(), 6)
+        self.assertEqual(words.get(text='achieve').part_of_speech, 'verb')
+
+        self.assertContains(post('Achieve — достигать\nnotice — замечать'), 'Добавлено слов: 1, уже были: 1.')
+        self.assertContains(post('просто текст'), 'не нашлось строк')

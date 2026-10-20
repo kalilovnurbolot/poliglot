@@ -25,6 +25,13 @@
           <p class="mt-1 text-sm text-zinc-500">Проверь себя: выбор перевода или на слух.</p>
         </div>
       </a>
+      <a href="{% url 'web:missions' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="flag" class="h-6 w-6" %}</span>
+        <div>
+          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Миссии</p>
+          <p class="mt-1 text-sm text-zinc-500">Сценки голосом: магазин, кафе — с оценкой речи.</p>
+        </div>
+      </a>
       <a href="{% url 'web:grammar' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
         <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="book" class="h-6 w-6" %}</span>
         <div>

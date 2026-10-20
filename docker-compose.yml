@@ -22,6 +22,9 @@ services:
       DATABASE_URL: postgres://poliglot:poliglot@db:5432/poliglot
       # Django reaches the voice service inside the Docker network; browsers never do.
       VOICE_SERVICE_URL: ws://voice:2700/
+      GRAMMAR_SERVICE_URL: http://grammar:8010
+      MEANING_SERVICE_URL: http://meaning:8020
+      PRONOUNCE_SERVICE_URL: http://pronounce:8030
       BACKUP_DIR: /backups
     volumes:
       # Shared with the `backup` service: database versions in the admin panel.
@@ -37,6 +40,20 @@ services:
   voice:
     build: ./voice
     # ports: бөлүгү өчүрүлдү, ички тармакта гана иштейт
+
+  # Grammar check of mission answers (LanguageTool), inside the Docker network only.
+  grammar:
+    image: erikvl87/languagetool:6.8
+    environment:
+      Java_Xmx: 1g
+
+  # Meaning of mission answers (sentence vectors), inside the Docker network only.
+  meaning:
+    build: ./meaning
+
+  # Pronunciation of mission answers, sound by sound; inside the Docker network only.
+  pronounce:
+    build: ./pronounce
 
   # Daily database backups into ./backups on the host (scripts/backup.sh, README «Бэкапы»).
   backup:

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import admin_views, views
+from . import admin_views, mission_views, views
 
 app_name = 'web'
 
@@ -20,7 +20,12 @@ urlpatterns = [
     path('learn/group/<int:pk>/', views.learn_deck, name='learn-deck'),
     path('quiz/', views.quiz, name='quiz'),
     path('voice/recognize/', views.voice_recognize, name='voice-recognize'),
+    path('missions/', mission_views.missions, name='missions'),
+    path('missions/<int:pk>/', mission_views.mission_play, name='mission-play'),
+    path('missions/<int:pk>/step/', mission_views.mission_step, name='mission-step'),
+    path('missions/attempt/<int:pk>/', mission_views.mission_attempt, name='mission-attempt'),
     path('words/', views.words, name='words'),
+    path('words/list/', views.words_list, name='words-list'),
     path('words/<int:pk>/delete/', views.word_delete, name='word-delete'),
     path('words/groups/new/', views.group_create, name='group-create'),
 

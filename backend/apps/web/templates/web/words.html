@@ -25,6 +25,20 @@
     <button type="submit" class="btn btn-primary self-start">Добавить слово</button>
   </form>
 
+  <details class="card p-4" {% if list_form.errors %}open{% endif %}>
+    <summary class="cursor-pointer font-medium text-zinc-900 dark:text-zinc-50">Добавить списком</summary>
+    <form method="post" action="{% url 'web:words-list' %}" class="mt-3 flex flex-col gap-3" data-submitting-label="Добавляем...">
+      {% csrf_token %}
+      {{ list_form.text }}
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {{ list_form.part_of_speech }}
+        {{ list_form.level }}
+        {{ list_form.deck }}
+      </div>
+      <button type="submit" class="btn btn-primary self-start">Добавить все</button>
+    </form>
+  </details>
+
   <section class="flex flex-col gap-3">
     <div class="flex flex-wrap gap-2">
       <a href="?" class="pill {% if not deck %}pill-active{% endif %}">Все группы</a>
