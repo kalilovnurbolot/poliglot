@@ -5,6 +5,7 @@
 // Everything is also spoken aloud, so a session can be done in headphones without
 // looking at the screen. The direction toggle shows the word and asks for the
 // translation ("forward") or the other way round ("reverse"); the choice is remembered.
+// A wrong spoken answer is corrected aloud, saved as "не знаю" and asked once more at the end.
 (() => {
   const EXIT_DISTANCE = 600;
   const SWIPE_THRESHOLD = 100;
@@ -15,9 +16,10 @@
     left: { x: -EXIT_DISTANCE, y: 0, rotate: -20 },
     up: { x: 0, y: -EXIT_DISTANCE, rotate: 0 },
     down: { x: 0, y: EXIT_DISTANCE, rotate: 0 },
+    again: { x: -EXIT_DISTANCE, y: 0, rotate: -20 },
   };
-  const DIRECTION_LABEL = { right: "Знаю", left: "Не знаю", up: "В избранное", down: "Пропустить" };
-  const DIRECTION_COLOR = { right: "bg-emerald-600", left: "bg-red-600", up: "bg-amber-500", down: "bg-zinc-600" };
+  const DIRECTION_LABEL = { right: "Знаю", left: "Не знаю", up: "В избранное", down: "Пропустить", again: "Повторим в конце" };
+  const DIRECTION_COLOR = { right: "bg-emerald-600", left: "bg-red-600", up: "bg-amber-500", down: "bg-zinc-600", again: "bg-red-600" };
   const KEY_TO_DIRECTION = { ArrowRight: "right", ArrowLeft: "left", ArrowUp: "up", ArrowDown: "down" };
   // Checked in order, so longer phrases come first ("не знаю" before "знаю",
   // "озвучь перевод" before "озвучь").
@@ -180,15 +182,18 @@
     const [current, ...rest] = queue;
     if (direction === "down") {
       queue = [...rest, current];
+    } else if (current.retry && (direction === "right" || direction === "left")) {
+      // A card asked again after a wrong answer was already saved and counted as "не знаю".
+      queue = rest;
     } else {
       poliglot
-        .postJSON(window.poliglotAnswerUrl, { word: current.word.id, direction })
+        .postJSON(window.poliglotAnswerUrl, { word: current.word.id, direction: direction === "again" ? "left" : direction })
         .then((res) => { if (!res.ok) throw new Error(); })
         .catch(() => showError("Ответ не сохранился — проверьте соединение."));
       if (direction === "right") stats.known++;
-      if (direction === "left") stats.unknown++;
+      if (direction === "left" || direction === "again") stats.unknown++;
       if (direction === "up") stats.favorited++;
-      queue = rest;
+      queue = direction === "again" ? [...rest, { ...current, retry: true }] : rest;
     }
     render();
   }
@@ -366,11 +371,10 @@
     }
     if (!text) return;
 
+    // Wrong: tell the right answer and move on; the card comes back once at the end.
     if (!match) {
-      voiceStatus.textContent = `✗ Вы сказали «${text}». Попробуйте ещё раз или скажите «не знаю»`;
-      return say(`Нет, вы сказали: ${text}. Попробуйте ещё раз.`, "ru").then(() => {
-        if (queue[0]?.word === word) say(...question(word));
-      });
+      voiceStatus.textContent = `✗ Вы сказали «${text}». Правильно: «${answer(word)[0]}»`;
+      return sayThenSwipe(queue[0].retry ? "left" : "again", ["Неправильно. Правильно:", "ru"], answer(word));
     }
     voiceStatus.textContent = `«${text}»`;
     const action = match[1];
