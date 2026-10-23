@@ -22,11 +22,12 @@ from apps.users.activity import Action, log_activity
 from apps.users.google import GoogleAuthError, user_from_google_token
 from apps.users.models import User
 from apps.vocabulary.models import Deck, Word
-from apps.vocabulary.queries import review_queue, user_decks, visible_decks
+from apps.vocabulary.queries import review_queue, user_decks, visible_decks, visible_words
 from apps.vocabulary.serializers import ReviewCardSerializer
 
 from .appearance import clean_appearance
 from .context_processors import SESSION_KEY, current_language
+from .dictionary import group_by_letter
 from .mission_views import current_step, prefer_expected, step_hints
 from .forms import GrammarRuleForm, LoginForm, NewPasswordForm, RegisterForm, WordForm, WordListForm
 from .rule_render import extract_lede, extract_sections, render_rule
@@ -205,10 +206,11 @@ def learn(request):
 
 
 def _learn_session(request, cards):
-    return render(request, 'web/learn_session.html', {
-        'cards': ReviewCardSerializer(cards, many=True).data,
-        'voice': voice_config(),
-    })
+    """Flashcards, or with ?mode=listen the same words read aloud one by one to learn first."""
+    cards = ReviewCardSerializer(cards, many=True).data
+    if request.GET.get('mode') == 'listen':
+        return render(request, 'web/learn_listen.html', {'cards': cards})
+    return render(request, 'web/learn_session.html', {'cards': cards, 'voice': voice_config()})
 
 
 @login_required
@@ -336,6 +338,20 @@ def words(request):
         'groups': groups.annotate(word_count=Count('words')),
         'deck': deck,
         'deck_param': f'&deck={deck.pk}' if deck else '',
+        'levels': LEVELS,
+        'level': level,
+    })
+
+
+@login_required
+def dictionary(request):
+    """Every word of the current language the user can see, A to Z, split by letter."""
+    language = current_language(request)
+    level = _level_param(request)
+    letters = group_by_letter(visible_words(request.user, language, level), language)
+    return render(request, 'web/dictionary.html', {
+        'letters': letters,
+        'word_count': sum(len(words) for _, words in letters),
         'levels': LEVELS,
         'level': level,
     })

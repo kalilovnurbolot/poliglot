@@ -12,6 +12,11 @@
 
   <p id="learn-error" class="hidden text-sm text-red-600"></p>
 
+  <div id="learn-mode" class="flex gap-2" role="group" aria-label="Режим">
+    <span class="pill pill-active" aria-current="page">Карточки</span>
+    <a href="?mode=listen" class="pill">Слушать</a>
+  </div>
+
   <div id="learn-direction" class="mb-2 flex gap-2" role="group" aria-label="Направление">
     <button type="button" data-direction="forward" class="pill">{{ language|upper }} → RU</button>
     <button type="button" data-direction="reverse" class="pill">RU → {{ language|upper }}</button>

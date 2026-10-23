@@ -1,0 +1,68 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Слушать слова · Полиглот{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<main class="relative mx-auto flex min-h-dvh w-full max-w-xl flex-1 flex-col items-center gap-6 px-4 py-10">
+  <a href="{% url 'web:learn' %}" aria-label="Закрыть"
+     class="absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900/5 text-lg text-zinc-500 hover:bg-zinc-900/10 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-50">{% include "web/partials/icon.html" with name="x" class="h-5 w-5" %}</a>
+
+  <div class="flex gap-2" role="group" aria-label="Режим">
+    <a href="{{ request.path }}" class="pill">Карточки</a>
+    <span class="pill pill-active" aria-current="page">Слушать</span>
+  </div>
+
+  {% if not cards %}
+    <p class="mt-10 text-zinc-500">Здесь пока нет слов.</p>
+  {% else %}
+    <div class="card flex w-full flex-col items-center gap-3 p-8 text-center">
+      <p class="text-xs text-zinc-400"><span id="listen-position">1</span> / {{ cards|length }}</p>
+      <p id="listen-text" class="break-words text-3xl font-semibold text-zinc-900 dark:text-zinc-50"></p>
+      <p id="listen-transcription" class="text-zinc-500"></p>
+      <p id="listen-translation" class="break-words text-xl text-indigo-600 dark:text-indigo-400"></p>
+      <p id="listen-example" class="text-sm text-zinc-500 italic"></p>
+
+      <div class="mt-4 flex items-center gap-3">
+        <button type="button" id="listen-prev" class="btn btn-secondary" aria-label="Предыдущее слово">←</button>
+        <button type="button" id="listen-play" class="btn btn-primary min-w-36">{% include "web/partials/icon.html" with name="volume" class="h-4 w-4" %} <span id="listen-play-label">Слушать</span></button>
+        <button type="button" id="listen-next" class="btn btn-secondary" aria-label="Следующее слово">→</button>
+      </div>
+      <div id="listen-repeat" class="flex items-center gap-2 text-sm text-zinc-500" role="group" aria-label="Сколько раз повторять">
+        Повторять:
+        {% for times in "1235" %}<button type="button" data-repeat="{{ times }}" class="pill !px-2.5">{{ times }}×</button>{% endfor %}
+      </div>
+      <label class="flex items-center gap-2 text-sm text-zinc-500">
+        <input type="checkbox" id="listen-example-toggle" class="accent-indigo-600"> Читать и пример
+      </label>
+      <p class="text-xs text-zinc-400">Пробел — пауза, ← → — соседние слова</p>
+    </div>
+
+    <div id="listen-done" class="hidden flex-col items-center gap-3 text-center">
+      <p class="font-semibold text-zinc-900 dark:text-zinc-50">Все слова прослушаны</p>
+      <a href="{{ request.path }}" class="btn btn-primary">Теперь проверить себя</a>
+    </div>
+
+    <ol id="listen-list" class="flex w-full flex-col gap-1">
+      {% for card in cards %}
+        <li>
+          <button type="button" data-index="{{ forloop.counter0 }}"
+                  class="flex w-full items-baseline gap-2 rounded-lg px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900">
+            <span class="w-6 shrink-0 text-xs text-zinc-400">{{ forloop.counter }}</span>
+            <span class="font-medium break-words text-zinc-900 dark:text-zinc-50">{{ card.word.text }}</span>
+            <span class="break-words text-zinc-500">— {{ card.word.translation }}</span>
+          </button>
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</main>
+{{ cards|json_script:"cards-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script>window.poliglotLanguage = "{{ language }}";</script>
+<script src="{% static 'web/js/listen.js' %}"></script>
+{% endblock %}

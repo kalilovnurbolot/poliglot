@@ -58,7 +58,7 @@ class WebPagesTests(TestCase):
         self.assertContains(self.client.get(f'/grammar/{rule.pk}/'), rule.title)
 
     def test_private_pages_redirect_to_login(self):
-        for url in ['/learn/', '/learn/A1/', '/quiz/', '/words/', '/grammar/new/']:
+        for url in ['/learn/', '/learn/A1/', '/quiz/', '/words/', '/dictionary/', '/grammar/new/']:
             res = self.client.get(url)
             self.assertRedirects(res, f'/login/?next={url}', fetch_redirect_response=False)
 
@@ -197,11 +197,39 @@ class WebPagesTests(TestCase):
         self.assertContains(session, 'EN → RU')
         self.assertContains(session, 'RU → EN')
         self.assertContains(self.client.get(f'/learn/group/{topic.pk}/'), 'id="cards-data"')
+        listen = self.client.get(f'/learn/group/{topic.pk}/?mode=listen')
+        self.assertContains(listen, 'id="listen-play"')
+        self.assertContains(listen, topic.words.order_by('text').first().text)
         self.assertEqual(self.client.get('/learn/Z9/').status_code, 404)
         self.assertContains(self.client.get('/quiz/?level=A1&mode=listening'), 'id="quiz-data"')
         self.assertContains(self.client.get('/quiz/?level=all'), 'id="quiz-data"')
         self.assertContains(self.client.get(f'/quiz/?deck={topic.pk}'), topic.name)
         self.assertEqual(self.client.get('/quiz/?deck=x').status_code, 404)
+
+    def test_dictionary(self):
+        self.client.force_login(self.user)
+        Word.objects.create(language=self.en, owner=self.user, text='to zigzag', translation='петлять', level='C1')
+        res = self.client.get('/dictionary/')
+        letters = [letter for letter, _ in res.context['letters']]
+        self.assertEqual(letters, sorted(letters))
+        self.assertIn('to zigzag', [w.text for w in dict(res.context['letters'])['Z']])
+        self.assertContains(res, 'петлять')
+        a1 = self.client.get('/dictionary/?level=A1')
+        self.assertNotContains(a1, 'петлять')
+        self.assertTrue(all(w.level == 'A1' for _, words in a1.context['letters'] for w in words))
+
+    def test_dictionary_grouping(self):
+        from .dictionary import group_by_letter
+
+        class W:
+            def __init__(self, text, translation='x'):
+                self.text, self.translation = text, translation
+
+        words = [W('das Haus'), W('ähnlich'), W('Zug'), W('apfel'), W('Apfel'), W('3D')]
+        groups = group_by_letter(words, 'de')
+        self.assertEqual([(l, [w.text for w in ws]) for l, ws in groups], [
+            ('A', ['ähnlich', 'apfel']), ('D', ['3D']), ('H', ['das Haus']), ('Z', ['Zug']),
+        ])
 
     def test_own_groups(self):
         self.client.force_login(self.user)

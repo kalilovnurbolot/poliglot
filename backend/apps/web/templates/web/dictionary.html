@@ -1,0 +1,60 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Словарь · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10">
+  <div>
+    <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Словарь</h1>
+    <p class="mt-1 text-zinc-500">Все слова по алфавиту · {{ word_count }}</p>
+  </div>
+
+  {% include "web/partials/level_switcher.html" with allow_all=True %}
+
+  {% if letters %}
+    <input id="dictionary-search" type="search" placeholder="Найти слово или перевод" class="input" autocomplete="off">
+
+    <nav id="letters" aria-label="Буквы" class="flex scroll-mt-32 flex-wrap gap-1">
+      {% for letter, words in letters %}
+        <a href="#letter-{{ forloop.counter }}" data-letter-link="{{ letter }}"
+           class="flex h-8 min-w-8 items-center justify-center rounded-lg px-1 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10">{{ letter }}</a>
+      {% endfor %}
+    </nav>
+
+    <p id="dictionary-empty" class="hidden text-zinc-500">Ничего не нашлось.</p>
+
+    {% for letter, words in letters %}
+      <section id="letter-{{ forloop.counter }}" data-letter="{{ letter }}" class="scroll-mt-32">
+        <h2 class="mb-2 flex items-center gap-3 text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+          {{ letter }}
+          <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800"></span>
+          <span class="text-xs font-normal text-zinc-400">{{ words|length }}</span>
+          <a href="#letters" aria-label="К буквам" class="text-sm font-normal text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">↑</a>
+        </h2>
+        <ul class="card divide-y divide-zinc-100 dark:divide-zinc-800">
+          {% for word in words %}
+            <li data-search="{{ word.text|lower }} {{ word.translation|lower }}" class="flex items-center gap-3 px-4 py-2.5">
+              <button type="button" data-speak="{{ word.text }}" aria-label="Озвучить {{ word.text }}"
+                      class="shrink-0 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">{% include "web/partials/icon.html" with name="volume" class="h-4 w-4" %}</button>
+              <div class="min-w-0 flex-1 break-words">
+                <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ word.text }}</span>
+                {% if word.transcription %}<span class="ml-1 text-sm text-zinc-400">{{ word.transcription }}</span>{% endif %}
+                <span class="text-zinc-500"> — {{ word.translation }}</span>
+              </div>
+              <span class="shrink-0 rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-500 dark:border-zinc-700">{{ word.level }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p class="text-zinc-500">Слов пока нет.</p>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>window.poliglotLanguage = "{{ language }}";</script>
+<script src="{% static 'web/js/dictionary.js' %}"></script>
+{% endblock %}

@@ -109,6 +109,7 @@
       if (voiceSession) say("На сегодня всё. Отличная работа!", "ru").then(() => voiceSession?.stop());
       $("voice-panel").classList.replace("flex", "hidden");
       $("learn-direction").classList.add("hidden");
+      $("learn-mode").classList.add("hidden");
       $("learn-stage").classList.add("hidden");
       const done = $("learn-done");
       done.classList.remove("hidden");

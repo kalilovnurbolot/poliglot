@@ -24,6 +24,7 @@ urlpatterns = [
     path('missions/<int:pk>/', mission_views.mission_play, name='mission-play'),
     path('missions/<int:pk>/step/', mission_views.mission_step, name='mission-step'),
     path('missions/attempt/<int:pk>/', mission_views.mission_attempt, name='mission-attempt'),
+    path('dictionary/', views.dictionary, name='dictionary'),
     path('words/', views.words, name='words'),
     path('words/list/', views.words_list, name='words-list'),
     path('words/<int:pk>/delete/', views.word_delete, name='word-delete'),
