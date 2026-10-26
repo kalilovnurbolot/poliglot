@@ -16,29 +16,38 @@
     <a href="?mode=tenses" class="pill">Времена</a>
   </div>
 
-  {% if not cards %}
+  {% if not words %}
     <p class="mt-10 text-zinc-500">Здесь пока нет слов.</p>
   {% else %}
-    <div class="card flex w-full flex-col items-center gap-3 p-8 text-center">
-      <p class="text-xs text-zinc-400"><span id="listen-position">1</span> / {{ cards|length }}</p>
-      <p id="listen-text" class="break-words text-3xl font-semibold text-zinc-900 dark:text-zinc-50"></p>
-      <p id="listen-transcription" class="text-zinc-500"></p>
-      <p id="listen-translation" class="break-words text-xl text-indigo-600 dark:text-indigo-400"></p>
-      <p id="listen-example" class="text-sm text-zinc-500 italic"></p>
+    {% comment %}data-mini (listen.js): "pip" in its own always-on-top window, "float" pinned to a corner of the page.{% endcomment %}
+    <div id="listen-card" class="card group relative flex w-full flex-col items-center gap-3 p-8 text-center
+                data-[mini=float]:fixed data-[mini=float]:right-4 data-[mini=float]:bottom-4 data-[mini=float]:left-4 data-[mini=float]:z-30 data-[mini=float]:mx-0 data-[mini=float]:w-auto data-[mini=float]:gap-1 data-[mini=float]:rounded-2xl data-[mini=float]:border data-[mini=float]:p-4 data-[mini=float]:shadow-xl sm:data-[mini=float]:left-auto sm:data-[mini=float]:w-80
+                data-[mini=pip]:mx-0 data-[mini=pip]:min-h-dvh data-[mini=pip]:justify-center data-[mini=pip]:gap-1 data-[mini=pip]:rounded-none data-[mini=pip]:border-0 data-[mini=pip]:p-4 data-[mini=pip]:shadow-none">
+      <button type="button" id="listen-mini" aria-label="Мини-плеер" title="Мини-плеер"
+              class="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:hover:bg-zinc-800 dark:hover:text-indigo-400">
+        <span class="group-data-[mini]:hidden">{% include "web/partials/icon.html" with name="pip" class="h-4 w-4" %}</span>
+        <span class="hidden group-data-[mini]:inline">{% include "web/partials/icon.html" with name="maximize" class="h-4 w-4" %}</span>
+      </button>
+      <p class="text-xs text-zinc-400"><span id="listen-position">1</span> / <span id="listen-total">0</span></p>
+      <p id="listen-nothing" class="hidden text-zinc-500">Отметьте слова в списке ниже — плеер прочитает только их</p>
+      <p id="listen-text" class="break-words text-3xl font-semibold text-zinc-900 group-data-[mini]:px-8 group-data-[mini]:text-xl dark:text-zinc-50"></p>
+      <p id="listen-transcription" class="text-zinc-500 group-data-[mini]:text-sm"></p>
+      <p id="listen-translation" class="break-words text-xl text-indigo-600 group-data-[mini]:text-base dark:text-indigo-400"></p>
+      <p id="listen-example" class="text-sm text-zinc-500 italic group-data-[mini]:hidden"></p>
 
-      <div class="mt-4 flex items-center gap-3">
+      <div class="mt-4 flex items-center gap-3 group-data-[mini]:mt-2">
         <button type="button" id="listen-prev" class="btn btn-secondary" aria-label="Предыдущее слово">←</button>
         <button type="button" id="listen-play" class="btn btn-primary min-w-36">{% include "web/partials/icon.html" with name="volume" class="h-4 w-4" %} <span id="listen-play-label">Слушать</span></button>
         <button type="button" id="listen-next" class="btn btn-secondary" aria-label="Следующее слово">→</button>
       </div>
-      <div id="listen-repeat" class="flex items-center gap-2 text-sm text-zinc-500" role="group" aria-label="Сколько раз повторять">
+      <div id="listen-repeat" class="flex items-center gap-2 text-sm text-zinc-500 group-data-[mini]:hidden" role="group" aria-label="Сколько раз повторять">
         Повторять:
         {% for times in "1235" %}<button type="button" data-repeat="{{ times }}" class="pill !px-2.5">{{ times }}×</button>{% endfor %}
       </div>
-      <label class="flex items-center gap-2 text-sm text-zinc-500">
+      <label class="flex items-center gap-2 text-sm text-zinc-500 group-data-[mini]:hidden">
         <input type="checkbox" id="listen-example-toggle" class="accent-indigo-600"> Читать и пример
       </label>
-      <p class="text-xs text-zinc-400">Пробел — пауза, ← → — соседние слова</p>
+      <p class="text-xs text-zinc-400 group-data-[mini]:hidden">Пробел — пауза, ← → — соседние слова</p>
     </div>
 
     <div id="listen-done" class="hidden flex-col items-center gap-3 text-center">
@@ -46,21 +55,39 @@
       <a href="{{ request.path }}" class="btn btn-primary">Теперь проверить себя</a>
     </div>
 
-    <ol id="listen-list" class="flex w-full flex-col gap-1">
-      {% for card in cards %}
-        <li>
-          <button type="button" data-index="{{ forloop.counter0 }}"
-                  class="flex w-full items-baseline gap-2 rounded-lg px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900">
-            <span class="w-6 shrink-0 text-xs text-zinc-400">{{ forloop.counter }}</span>
-            <span class="font-medium break-words text-zinc-900 dark:text-zinc-50">{{ card.word.text }}</span>
-            <span class="break-words text-zinc-500">— {{ card.word.translation }}</span>
-          </button>
-        </li>
-      {% endfor %}
-    </ol>
+    <section id="listen-setup" class="flex w-full flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-medium text-zinc-500">Список слов · <span id="listen-picked">0</span> из {{ words|length }}</h2>
+        <div class="flex gap-2" role="group" aria-label="Отметить">
+          <button type="button" id="listen-pick-all" class="pill !px-2.5 text-xs">Все</button>
+          <button type="button" id="listen-pick-none" class="pill !px-2.5 text-xs">Ничего</button>
+          <button type="button" id="listen-pick-default" class="pill !px-2.5 text-xs" title="Слова к повторению и новые, как в карточках">По умолчанию</button>
+        </div>
+      </div>
+      {% if words|length > 10 %}
+        <input id="listen-search" type="search" placeholder="Найти слово или перевод" class="input" autocomplete="off">
+      {% endif %}
+      <p id="listen-search-empty" class="hidden text-sm text-zinc-500">Ничего не нашлось.</p>
+
+      <ol id="listen-list" class="flex w-full flex-col gap-1">
+        {% for word in words %}
+          <li data-search="{{ word.text|lower }} {{ word.translation|lower }}" class="flex items-center gap-1 rounded-lg">
+            <label class="flex shrink-0 cursor-pointer items-center self-stretch px-3">
+              <input type="checkbox" data-pick="{{ forloop.counter0 }}" class="h-4 w-4 accent-indigo-600" aria-label="Слушать «{{ word.text }}»">
+            </label>
+            <button type="button" data-index="{{ forloop.counter0 }}"
+                    class="min-w-0 flex-1 rounded-lg px-2 py-2 text-left break-words hover:bg-zinc-100 dark:hover:bg-zinc-900">
+              <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ word.text }}</span>
+              <span class="text-zinc-500">— {{ word.translation }}</span>
+            </button>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
   {% endif %}
 </main>
-{{ cards|json_script:"cards-data" }}
+{{ words|json_script:"words-data" }}
+{{ picked|json_script:"picked-data" }}
 {% endblock %}
 
 {% block scripts %}

@@ -23,7 +23,7 @@ from apps.users.google import GoogleAuthError, user_from_google_token
 from apps.users.models import User
 from apps.vocabulary.models import Deck, IrregularVerb, Word
 from apps.vocabulary.queries import review_queue, user_decks, visible_decks, visible_words
-from apps.vocabulary.serializers import ReviewCardSerializer
+from apps.vocabulary.serializers import ReviewCardSerializer, WordSerializer
 
 from .appearance import clean_appearance
 from .context_processors import SESSION_KEY, current_language
@@ -206,11 +206,18 @@ def learn(request):
     ))
 
 
-def _learn_session(request, cards):
-    """Flashcards, or with ?mode=listen the same words read aloud one by one to learn first."""
+def _learn_session(request, cards, words):
+    """Flashcards, or with ?mode=listen words read aloud one by one to learn first.
+
+    Listening offers every word of the level or group (`words`); the flashcards' batch
+    is picked by default and the learner can change the list.
+    """
     cards = ReviewCardSerializer(cards, many=True).data
     if request.GET.get('mode') == 'listen':
-        return render(request, 'web/learn_listen.html', {'cards': cards})
+        return render(request, 'web/learn_listen.html', {
+            'words': WordSerializer(words.order_by('text'), many=True).data,
+            'picked': [card['word']['id'] for card in cards],
+        })
     return render(request, 'web/learn_session.html', {'cards': cards, 'voice': voice_config()})
 
 
@@ -233,17 +240,19 @@ def learn_session(request, level):
         raise Http404
     level = None if level == 'all' else level
     language = current_language(request)
+    words = visible_words(request.user, language, level)
     if request.GET.get('mode') == 'tenses':
-        return _tenses_session(request, visible_words(request.user, language, level), language)
-    return _learn_session(request, review_queue(request.user, language, level))
+        return _tenses_session(request, words, language)
+    return _learn_session(request, review_queue(request.user, language, level), words)
 
 
 @login_required
 def learn_deck(request, pk):
     deck = _visible_deck(request, pk)
+    words = visible_words(request.user, deck.language.code, deck=deck)
     if request.GET.get('mode') == 'tenses':
-        return _tenses_session(request, visible_words(request.user, deck.language.code, deck=deck), deck.language.code)
-    return _learn_session(request, review_queue(request.user, deck.language.code, deck=deck))
+        return _tenses_session(request, words, deck.language.code)
+    return _learn_session(request, review_queue(request.user, deck.language.code, deck=deck), words)
 
 
 @login_required
