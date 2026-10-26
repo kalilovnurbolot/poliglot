@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
-from django.db.models import Count, Exists, Max, OuterRef
+from django.db.models import Count, Exists, Max, OuterRef, Q
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
@@ -21,7 +21,7 @@ from apps.quizzes.serializers import QuizQuestionSerializer
 from apps.users.activity import Action, log_activity
 from apps.users.google import GoogleAuthError, user_from_google_token
 from apps.users.models import User
-from apps.vocabulary.models import Deck, Word
+from apps.vocabulary.models import Deck, IrregularVerb, Word
 from apps.vocabulary.queries import review_queue, user_decks, visible_decks, visible_words
 from apps.vocabulary.serializers import ReviewCardSerializer
 
@@ -31,6 +31,7 @@ from .dictionary import group_by_letter
 from .mission_views import current_step, prefer_expected, step_hints
 from .forms import GrammarRuleForm, LoginForm, NewPasswordForm, RegisterForm, WordForm, WordListForm
 from .rule_render import extract_lede, extract_sections, render_rule
+from .tenses import irregular_forms, tense_forms, verb_emoji
 from .voice import LANGUAGES as VOICE_LANGUAGES, MAX_BYTES, VoiceUnavailable, recognize, voice_config
 from .word_list import parse_word_list
 
@@ -213,18 +214,35 @@ def _learn_session(request, cards):
     return render(request, 'web/learn_session.html', {'cards': cards, 'voice': voice_config()})
 
 
+def _tenses_session(request, words, language, limit=5):
+    """«Времена»: verbs ride an escalator past a barrier per tense, recorded as a short video."""
+    verbs = []
+    for word in words.filter(Q(part_of_speech='verb') | Q(text__istartswith='to ')).order_by('?'):
+        forms = tense_forms(word.text, language)
+        if forms:
+            verbs.append({'id': word.pk, 'text': word.text, 'translation': word.translation,
+                          'emoji': verb_emoji(word.text), 'forms': forms})
+            if len(verbs) == limit:
+                break
+    return render(request, 'web/learn_tenses.html', {'verbs': verbs, 'voice': voice_config()})
+
+
 @login_required
 def learn_session(request, level):
     if level != 'all' and level not in LEVELS:
         raise Http404
-    return _learn_session(request, review_queue(
-        request.user, current_language(request), None if level == 'all' else level,
-    ))
+    level = None if level == 'all' else level
+    language = current_language(request)
+    if request.GET.get('mode') == 'tenses':
+        return _tenses_session(request, visible_words(request.user, language, level), language)
+    return _learn_session(request, review_queue(request.user, language, level))
 
 
 @login_required
 def learn_deck(request, pk):
     deck = _visible_deck(request, pk)
+    if request.GET.get('mode') == 'tenses':
+        return _tenses_session(request, visible_words(request.user, deck.language.code, deck=deck), deck.language.code)
     return _learn_session(request, review_queue(request.user, deck.language.code, deck=deck))
 
 
@@ -340,6 +358,28 @@ def words(request):
         'deck_param': f'&deck={deck.pk}' if deck else '',
         'levels': LEVELS,
         'level': level,
+    })
+
+
+@login_required
+def verbs(request):
+    """The irregular verbs table of the current language: three forms, transcriptions, translation."""
+    return render(request, 'web/verbs.html', {
+        'verbs': IrregularVerb.objects.filter(language__code=current_language(request)),
+    })
+
+
+@login_required
+def verbs_play(request, limit=5):
+    """The escalator game with a barrier per form of a random few irregular verbs."""
+    verbs = IrregularVerb.objects.filter(language__code=current_language(request)).order_by('?')[:limit]
+    return render(request, 'web/verbs_play.html', {
+        'verbs': [
+            {'id': verb.pk, 'text': verb.infinitive, 'translation': verb.translation,
+             'emoji': verb_emoji(verb.infinitive), 'forms': irregular_forms(verb)}
+            for verb in verbs
+        ],
+        'voice': voice_config(),
     })
 
 

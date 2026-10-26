@@ -1,0 +1,50 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Глаголы · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Неправильные глаголы</h1>
+      <p class="mt-1 text-zinc-500">Три формы: инфинитив, прошедшее время и причастие · {{ verbs|length }}</p>
+    </div>
+    {% if verbs %}
+      <a href="{% url 'web:verbs-play' %}" class="btn btn-primary">{% include "web/partials/icon.html" with name="mic" class="h-4 w-4" %} Играть: 3 формы</a>
+    {% endif %}
+  </div>
+
+  {% if verbs %}
+    <input id="verbs-search" type="search" placeholder="Найти глагол или перевод" class="input" autocomplete="off">
+    <p id="verbs-empty" class="hidden text-zinc-500">Ничего не нашлось.</p>
+
+    <ul class="card divide-y divide-zinc-100 dark:divide-zinc-800">
+      <li class="hidden grid-cols-[1fr_1fr_1fr_1.2fr_2rem] gap-3 px-4 py-2 text-xs font-medium text-zinc-400 sm:grid">
+        <span>V1 · Infinitive</span><span>V2 · Past Simple</span><span>V3 · Past Participle</span><span>Перевод</span><span></span>
+      </li>
+      {% for verb in verbs %}
+        <li data-search="{{ verb.infinitive }} {{ verb.past }} {{ verb.participle }} {{ verb.translation|lower }}"
+            class="grid grid-cols-[1fr_1fr_1fr_2rem] items-start gap-x-3 gap-y-1 px-4 py-3 sm:grid-cols-[1fr_1fr_1fr_1.2fr_2rem] sm:items-center">
+          {% for text, transcription in verb.forms %}
+            <div class="min-w-0 break-words">
+              <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ text }}</span>
+              <span class="block text-xs text-zinc-400">{{ transcription }}</span>
+            </div>
+          {% endfor %}
+          <span class="col-span-3 row-start-2 text-sm text-indigo-600 sm:col-span-1 sm:row-start-auto sm:text-base dark:text-indigo-400">{{ verb.translation }}</span>
+          <button type="button" data-speak="{{ verb.infinitive }}, {{ verb.past }}, {{ verb.participle }}" aria-label="Озвучить {{ verb.infinitive }}"
+                  class="col-start-4 row-start-1 justify-self-end text-zinc-400 hover:text-indigo-600 sm:col-start-auto sm:row-start-auto dark:hover:text-indigo-400">{% include "web/partials/icon.html" with name="volume" class="h-4 w-4" %}</button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-zinc-500">Для этого языка таблицы глаголов пока нет.</p>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>window.poliglotLanguage = "{{ language }}";</script>
+<script src="{% static 'web/js/verbs.js' %}"></script>
+{% endblock %}

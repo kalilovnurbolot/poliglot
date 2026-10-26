@@ -92,3 +92,36 @@ class UserWordProgress(models.Model):
 
     def __str__(self):
         return f'{self.user} — {self.word} (box {self.box_level})'
+
+
+class IrregularVerb(models.Model):
+    """A row of the irregular verbs table: the three forms with their transcriptions.
+
+    A form may have variants separated by " / " ("was / were", "learnt / learned"); any of them counts.
+    """
+
+    language = models.ForeignKey(Language, on_delete=models.CASCADE, related_name='irregular_verbs')
+    infinitive = models.CharField(max_length=50)
+    infinitive_transcription = models.CharField(max_length=60, blank=True)
+    past = models.CharField(max_length=50)
+    past_transcription = models.CharField(max_length=60, blank=True)
+    participle = models.CharField(max_length=50)
+    participle_transcription = models.CharField(max_length=60, blank=True)
+    translation = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['infinitive']
+        constraints = [
+            models.UniqueConstraint(fields=['language', 'infinitive'], name='unique_irregular_verb'),
+        ]
+
+    def __str__(self):
+        return f'{self.infinitive} — {self.past} — {self.participle}'
+
+    @property
+    def forms(self):
+        return [
+            (self.infinitive, self.infinitive_transcription),
+            (self.past, self.past_transcription),
+            (self.participle, self.participle_transcription),
+        ]

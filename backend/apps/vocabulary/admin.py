@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Deck, UserWordProgress, Word
+from .models import Deck, IrregularVerb, UserWordProgress, Word
 
 
 @admin.register(Deck)
@@ -22,3 +22,10 @@ class WordAdmin(admin.ModelAdmin):
 class UserWordProgressAdmin(admin.ModelAdmin):
     list_display = ['user', 'word', 'box_level', 'next_review_at', 'last_result']
     list_filter = ['box_level']
+
+
+@admin.register(IrregularVerb)
+class IrregularVerbAdmin(admin.ModelAdmin):
+    list_display = ['infinitive', 'past', 'participle', 'translation', 'language']
+    list_filter = ['language']
+    search_fields = ['infinitive', 'past', 'participle', 'translation']

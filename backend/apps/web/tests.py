@@ -58,7 +58,7 @@ class WebPagesTests(TestCase):
         self.assertContains(self.client.get(f'/grammar/{rule.pk}/'), rule.title)
 
     def test_private_pages_redirect_to_login(self):
-        for url in ['/learn/', '/learn/A1/', '/quiz/', '/words/', '/dictionary/', '/grammar/new/']:
+        for url in ['/learn/', '/learn/A1/', '/quiz/', '/words/', '/dictionary/', '/verbs/', '/verbs/play/', '/grammar/new/']:
             res = self.client.get(url)
             self.assertRedirects(res, f'/login/?next={url}', fetch_redirect_response=False)
 
@@ -200,6 +200,13 @@ class WebPagesTests(TestCase):
         listen = self.client.get(f'/learn/group/{topic.pk}/?mode=listen')
         self.assertContains(listen, 'id="listen-play"')
         self.assertContains(listen, topic.words.order_by('text').first().text)
+        verb = Word.objects.create(language=self.en, owner=self.user, text='to run', translation='бегать', part_of_speech='verb')
+        self.assertContains(self.client.get('/learn/all/?mode=tenses'), 'id="verbs-data"')
+        group = Deck.objects.create(language=self.en, owner=self.user, name='Глаголы')
+        verb.decks.add(group)
+        tenses = self.client.get(f'/learn/group/{group.pk}/?mode=tenses')
+        self.assertEqual([v['text'] for v in tenses.context['verbs']], ['to run'])
+        self.assertContains(tenses, 'I am running')
         self.assertEqual(self.client.get('/learn/Z9/').status_code, 404)
         self.assertContains(self.client.get('/quiz/?level=A1&mode=listening'), 'id="quiz-data"')
         self.assertContains(self.client.get('/quiz/?level=all'), 'id="quiz-data"')
@@ -230,6 +237,36 @@ class WebPagesTests(TestCase):
         self.assertEqual([(l, [w.text for w in ws]) for l, ws in groups], [
             ('A', ['ähnlich', 'apfel']), ('D', ['3D']), ('H', ['das Haus']), ('Z', ['Zug']),
         ])
+
+    def test_irregular_verbs(self):
+        self.client.force_login(self.user)
+        page = self.client.get('/verbs/')
+        self.assertContains(page, 'was / were')
+        self.assertContains(page, '[ˈrɪt(ə)n]')
+        game = self.client.get('/verbs/play/')
+        self.assertEqual(len(game.context['verbs']), 5)
+        self.assertEqual([f['short'] for f in game.context['verbs'][0]['forms']], ['V1', 'V2', 'V3'])
+        from apps.vocabulary.models import IrregularVerb
+        from .tenses import irregular_forms
+        be = IrregularVerb.objects.get(language=self.en, infinitive='be')
+        self.assertEqual([f['text'] for f in irregular_forms(be)], ['be', 'was / were', 'been'])
+
+    def test_tense_forms(self):
+        from .tenses import tense_forms
+
+        def phrases(text, language):
+            forms = tense_forms(text, language)
+            return forms and [f['text'] for f in forms]
+
+        self.assertEqual(phrases('to stop', 'en'), ['I stop', 'I am stopping', 'I will stop'])
+        self.assertEqual(phrases('to make', 'en'), ['I make', 'I am making', 'I will make'])
+        self.assertEqual(phrases('to die', 'en'), ['I die', 'I am dying', 'I will die'])
+        self.assertEqual(phrases('to get dressed', 'en'), ['I get dressed', 'I am getting dressed', 'I will get dressed'])
+        self.assertIsNone(phrases('to know', 'en'))
+        self.assertEqual(phrases('essen', 'de'), ['ich esse', 'ich esse gerade', 'ich werde essen'])
+        self.assertEqual(phrases('aufstehen', 'de'), ['ich stehe auf', 'ich stehe gerade auf', 'ich werde aufstehen'])
+        self.assertEqual(phrases('sich waschen', 'de'), ['ich wasche mich', 'ich wasche mich gerade', 'ich werde mich waschen'])
+        self.assertIsNone(phrases('können', 'de'))
 
     def test_own_groups(self):
         self.client.force_login(self.user)

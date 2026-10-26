@@ -1,0 +1,15 @@
+{% extends "web/learn_tenses.html" %}
+
+{% block title %}Формы глаголов · Полиглот{% endblock %}
+
+{% block close_url %}{% url 'web:verbs' %}{% endblock %}
+
+{% block game_nav %}
+  <a href="{% url 'web:verbs' %}" class="pill">Таблица</a>
+  <span class="pill pill-active" aria-current="page">3 формы</span>
+{% endblock %}
+
+{% block empty %}
+  <p class="font-semibold text-zinc-900 dark:text-zinc-50">Для этого языка пока нет таблицы глаголов</p>
+  <a href="{% url 'web:verbs' %}" class="btn btn-primary">К глаголам</a>
+{% endblock %}
