@@ -15,10 +15,12 @@ from django.utils.encoding import force_bytes
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode, urlsafe_base64_encode
 from django.views.decorators.http import require_POST
 
+from apps.core.models import SiteSettings
 from apps.users.activity import Action, log_activity
 from apps.users.models import ActivityLog, User
 
 from . import backups
+from .forms import SiteSettingsForm
 
 PAGE_SIZE = 50
 
@@ -26,6 +28,8 @@ PAGE_SIZE = 50
 USER_ACTIONS = {
     'grant_admin': ({'is_staff': True, 'is_superuser': True}, Action.ADMIN_GRANT),
     'revoke_admin': ({'is_staff': False, 'is_superuser': False}, Action.ADMIN_REVOKE),
+    'grant_teacher': ({'is_teacher': True}, Action.TEACHER_GRANT),
+    'revoke_teacher': ({'is_teacher': False}, Action.TEACHER_REVOKE),
     'block': ({'is_active': False}, Action.USER_BLOCK),
     'unblock': ({'is_active': True}, Action.USER_UNBLOCK),
 }
@@ -39,8 +43,8 @@ ACTION_GROUPS = {
         Action.GRAMMAR_DELETE, Action.GRAMMAR_LEARNED, Action.GRAMMAR_UNLEARNED,
     ]),
     'admin': ('Действия администраторов', [
-        Action.ADMIN_GRANT, Action.ADMIN_REVOKE, Action.USER_BLOCK, Action.USER_UNBLOCK, Action.PASSWORD_LINK,
-        Action.BACKUP_CREATE, Action.BACKUP_RESTORE, Action.BACKUP_DOWNLOAD, Action.BACKUP_UPLOAD,
+        Action.ADMIN_GRANT, Action.ADMIN_REVOKE, Action.TEACHER_GRANT, Action.TEACHER_REVOKE, Action.USER_BLOCK, Action.USER_UNBLOCK, Action.PASSWORD_LINK,
+        Action.BACKUP_CREATE, Action.BACKUP_RESTORE, Action.BACKUP_DOWNLOAD, Action.BACKUP_UPLOAD, Action.SETTINGS_CHANGE,
     ]),
 }
 GROUP_OF_ACTION = {action: group for group, (_, actions) in ACTION_GROUPS.items() for action in actions}
@@ -80,6 +84,8 @@ def users(request):
         found = found.filter(Q(email__icontains=q) | Q(first_name__icontains=q))
     if role == 'admins':
         found = found.filter(is_staff=True)
+    elif role == 'teachers':
+        found = found.filter(is_teacher=True)
     elif role == 'blocked':
         found = found.filter(is_active=False)
     page = Paginator(found, PAGE_SIZE).get_page(request.GET.get('page'))
@@ -94,6 +100,7 @@ def users(request):
         'counts': {
             'all': User.objects.count(),
             'admins': User.objects.filter(is_staff=True).count(),
+            'teachers': User.objects.filter(is_teacher=True).count(),
             'blocked': User.objects.filter(is_active=False).count(),
         },
     })
@@ -244,3 +251,15 @@ def database_upload(request):
     log_activity(request, Action.BACKUP_UPLOAD, f'{upload.name} → {name}')
     messages.success(request, f'Загружено: {name}')
     return redirect('web:manage-database')
+
+
+@owner_required
+def site_settings(request):
+    """The club's time zone and Google sign-in; teachers set up their bots themselves."""
+    form = SiteSettingsForm(request.POST or None, instance=SiteSettings.load())
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        log_activity(request, Action.SETTINGS_CHANGE)
+        messages.success(request, 'Настройки сохранены.')
+        return redirect('web:manage-settings')
+    return render(request, 'web/manage_settings.html', {'form': form})

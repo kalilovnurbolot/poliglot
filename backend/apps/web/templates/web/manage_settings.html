@@ -1,0 +1,33 @@
+{% extends "web/base.html" %}
+
+{% block title %}Настройки · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
+  {% include "web/partials/manage_tabs.html" %}
+
+  <form method="post" class="flex flex-col gap-6">
+    {% csrf_token %}
+
+    <section class="card flex flex-col gap-4 p-5">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Разговорный клуб</h2>
+      <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:max-w-sm">
+        Часовой пояс сеансов {{ form.club_time_zone }}
+        <span class="text-xs font-normal text-zinc-500">В нём учителя вводят время сеансов, и в нём его пишут боты.</span>
+      </label>
+      <p class="text-sm text-zinc-500">Instagram-ботов и QR для оплаты каждый учитель настраивает сам в разделе «Учителю».</p>
+    </section>
+
+    <section class="card flex flex-col gap-4 p-5">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Вход через Google</h2>
+      <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        Google OAuth client ID {{ form.google_oauth_client_id }}
+        <span class="text-xs font-normal text-zinc-500">Пусто — берётся из .env на сервере; нет и там — кнопка «Войти через Google» скрыта.</span>
+      </label>
+    </section>
+
+    {% include "web/partials/form_errors.html" %}
+    <button type="submit" class="btn btn-primary self-start">Сохранить</button>
+  </form>
+</main>
+{% endblock %}

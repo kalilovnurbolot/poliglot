@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import admin_views, mission_views, views
+from . import admin_views, mission_views, teach_views, views
 
 app_name = 'web'
 
@@ -40,9 +40,23 @@ urlpatterns = [
     path('grammar/<int:pk>/delete/', views.grammar_delete, name='grammar-delete'),
     path('grammar/<int:pk>/toggle-learned/', views.grammar_toggle_learned, name='grammar-toggle-learned'),
 
+    path('teach/', teach_views.teach, name='teach'),
+    path('teach/sessions/new/', teach_views.session_create, name='teach-session-create'),
+    path('teach/sessions/<int:pk>/', teach_views.session_detail, name='teach-session'),
+    path('teach/sessions/<int:pk>/edit/', teach_views.session_edit, name='teach-session-edit'),
+    path('teach/sessions/<int:pk>/delete/', teach_views.session_delete, name='teach-session-delete'),
+    path('teach/bookings/<int:pk>/<str:action>/', teach_views.booking_action, name='teach-booking-action'),
+    path('teach/bot/', teach_views.bot_settings, name='teach-bot'),
+    path('teach/bot/payment-qr/', teach_views.bot_payment_qr, name='teach-bot-payment-qr'),
+    path('teach/bot/disconnect/', teach_views.bot_disconnect, name='teach-bot-disconnect'),
+    path('club/ticket/<str:token>/', teach_views.ticket, name='club-ticket'),
+    path('club/payment-qr/<int:pk>/', teach_views.payment_qr, name='club-payment-qr'),
+    path('club/ticket/<str:token>/qr.png', teach_views.ticket_qr, name='club-ticket-qr'),
+
     path('manage/users/', admin_views.users, name='manage-users'),
     path('manage/users/<int:pk>/reset-link/', admin_views.user_reset_link, name='manage-user-reset-link'),
     path('manage/users/<int:pk>/<str:action>/', admin_views.user_action, name='manage-user-action'),
+    path('manage/settings/', admin_views.site_settings, name='manage-settings'),
     path('manage/log/', admin_views.activity, name='manage-log'),
     path('manage/database/', admin_views.database, name='manage-database'),
     path('manage/database/backup/', admin_views.database_backup, name='manage-database-backup'),

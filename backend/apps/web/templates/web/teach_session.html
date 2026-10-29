@@ -1,0 +1,82 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ session.title }} · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
+  <a href="{% url 'web:teach' %}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">← Кабинет учителя</a>
+
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ session.title }}</h1>
+      <p class="mt-1 text-zinc-500">
+        {{ session.starts_at|date:"l, j E, H:i" }}–{{ session.ends_at|date:"H:i" }}
+        {% if session.place %}· {{ session.place|urlize }}{% endif %}
+      </p>
+      <p class="mt-1 text-sm font-medium {% if taken >= session.seats %}text-red-600 dark:text-red-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">
+        Записано {{ taken }} из {{ session.seats }}{% if waitlist %} · ждут места: {{ waitlist|length }}{% endif %}
+      </p>
+    </div>
+    <div class="flex shrink-0 flex-wrap gap-2">
+      <a href="{% url 'web:teach-session-edit' session.pk %}" class="btn btn-secondary">Изменить</a>
+      <form method="post" action="{% url 'web:teach-session-delete' session.pk %}"
+            data-confirm="Удалить сеанс «{{ session.title }}»?{% if session.is_upcoming and taken %} Записанным клиентам бот напишет, что он отменён.{% endif %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Удалить</button>
+      </form>
+    </div>
+  </div>
+
+  <section class="flex flex-col gap-2">
+    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Записались</h2>
+    {% if not active %}<p class="text-zinc-500">Пока никого. Клиенты записываются через Instagram-бота.</p>{% endif %}
+    <ul class="flex flex-col gap-2">
+      {% for b in active %}
+        <li class="card flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
+            <p class="flex flex-wrap items-center gap-2">
+              <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ b.client }}</span>
+              {% if b.status == "attended" %}
+                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Пришёл</span>
+              {% endif %}
+            </p>
+            <p class="mt-1 text-sm text-zinc-500">записался <time data-local datetime="{{ b.created_at|date:'c' }}">{{ b.created_at|date:"d.m H:i" }}</time> · <a href="{% url 'web:club-ticket' b.token %}" class="text-indigo-600 hover:underline dark:text-indigo-400">билет</a></p>
+          </div>
+          <div class="flex shrink-0 flex-wrap gap-2">
+            {% if b.status == "attended" %}
+              {% include "web/partials/teach_booking_button.html" with action="unattend" label="Не пришёл" style="btn-secondary" confirm="" %}
+            {% else %}
+              {% include "web/partials/teach_booking_button.html" with action="attend" label="Пришёл" style="btn-secondary" confirm="" %}
+            {% endif %}
+            {% include "web/partials/teach_booking_button.html" with action="cancel" label="Отменить запись" style="btn-danger" confirm="Отменить запись? Клиенту придёт сообщение, а место предложат тем, кто ждёт." %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if waitlist %}
+    <section class="flex flex-col gap-2">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Ждут места</h2>
+      <p class="text-sm text-zinc-500">Когда место освободится, бот напишет всем им сразу — запишется тот, кто успеет первым.</p>
+      <ul class="flex flex-col gap-2">
+        {% for w in waitlist %}
+          <li class="card flex items-center justify-between gap-3 px-4 py-3">
+            <span class="font-medium text-zinc-900 dark:text-zinc-50">{{ w.client }}</span>
+            <span class="text-sm text-zinc-500">{% if w.notified_at %}уведомлён{% else %}ждёт с {{ w.created_at|date:"d.m H:i" }}{% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if cancelled %}
+    <details>
+      <summary class="cursor-pointer select-none text-sm font-medium text-zinc-600 dark:text-zinc-400">Отменённые записи · {{ cancelled|length }}</summary>
+      <ul class="mt-2 flex flex-col gap-1 text-sm text-zinc-500">
+        {% for b in cancelled %}<li>{{ b.client }} · {{ b.updated_at|date:"d.m H:i" }}</li>{% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</main>
+{% endblock %}

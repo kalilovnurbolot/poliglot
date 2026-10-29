@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.grammar',
     'apps.quizzes',
     'apps.missions',
+    'apps.club',
     'apps.web',
 ]
 
@@ -114,6 +115,10 @@ PRONOUNCE_SERVICE_URL = env('PRONOUNCE_SERVICE_URL', default='')
 # Folder shared with the `backup` service (docker-compose*.yml): the admin panel lists,
 # downloads and restores database versions there. Empty = the «База данных» tab is off.
 BACKUP_DIR = env('BACKUP_DIR', default='')
+
+# Time zone of talking club sessions (apps/club). Set in «Админка → Настройки»
+# (apps.core.models.SiteSettings); this is only the fallback, like GOOGLE_OAUTH_CLIENT_ID.
+CLUB_TIME_ZONE = env('CLUB_TIME_ZONE', default='Asia/Bishkek')
 
 # Accounts that are always admins (is_staff + is_superuser), whichever way they sign up.
 ADMIN_EMAILS = [e.lower() for e in env.list('ADMIN_EMAILS', default=['kalilovnurbolot3@gmail.com'])]

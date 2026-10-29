@@ -1,8 +1,14 @@
+import zoneinfo
+
 from django import forms
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
 
+from apps.club.models import ClubSession, InstagramBot
+from apps.core.models import SiteSettings
 from apps.grammar.models import GrammarRule
 from apps.users.models import User
 from apps.vocabulary.models import Deck, Word
@@ -145,3 +151,117 @@ class GrammarRuleForm(forms.ModelForm):
 
     def clean_title(self):
         return self.cleaned_data['title'].strip()
+
+
+class ClubSessionForm(forms.ModelForm):
+    """A talking club session; the time is typed in the club's time zone (teach_views)."""
+
+    class Meta:
+        model = ClubSession
+        fields = ['title', 'starts_at', 'duration_minutes', 'place', 'seats']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Например: Small talk о путешествиях', 'autofocus': True}),
+            'starts_at': forms.DateTimeInput(attrs={'class': INPUT, 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'duration_minutes': forms.NumberInput(attrs={'class': INPUT, 'min': 15, 'max': 600, 'step': 5}),
+            'place': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Адрес кафе или ссылка на Zoom'}),
+            'seats': forms.NumberInput(attrs={'class': INPUT, 'min': 1, 'max': 500}),
+        }
+
+    def clean_starts_at(self):
+        starts_at = self.cleaned_data['starts_at']
+        changed = self.instance.pk is None or 'starts_at' in self.changed_data
+        if changed and starts_at <= timezone.now():
+            raise forms.ValidationError('Сеанс должен начинаться в будущем.')
+        return starts_at
+
+    def clean_seats(self):
+        seats = self.cleaned_data['seats']
+        taken = self.instance.taken() if self.instance.pk else 0
+        if seats < max(taken, 1):
+            raise forms.ValidationError(f'Мест не может быть меньше, чем уже записано ({taken}).')
+        return seats
+
+
+
+
+class InstagramBotForm(forms.ModelForm):
+    """Keys from the teacher's own Meta app (/teach/bot/). Saved ones stay when left empty."""
+
+    SECRETS = ['app_secret', 'access_token']
+
+    class Meta:
+        model = InstagramBot
+        fields = ['app_secret', 'access_token']
+        widgets = {
+            'app_secret': forms.PasswordInput(attrs={'class': INPUT, 'autocomplete': 'off'}),
+            'access_token': forms.PasswordInput(attrs={'class': INPUT, 'autocomplete': 'off', 'placeholder': 'IGAA…'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in self.SECRETS:
+            self.fields[name].required = not getattr(self.instance, name)
+            if getattr(self.instance, name):
+                self.fields[name].widget.attrs['placeholder'] = 'Сохранён — оставьте пустым, чтобы не менять'
+
+    def clean(self):
+        cleaned = super().clean()
+        for name in self.SECRETS:
+            cleaned[name] = (cleaned.get(name) or '').strip() or getattr(self.instance, name)
+        return cleaned
+
+    def save(self, commit=True):
+        account = super().save(commit=False)
+        for name in self.SECRETS:
+            setattr(account, name, self.cleaned_data[name])
+        if commit:
+            account.save()
+        return account
+
+
+class PaymentQRForm(forms.Form):
+    """A bank QR the bot sends after a booking; cleaned `image` is (bytes, content type)."""
+
+    TYPES = {b'\xff\xd8\xff': 'image/jpeg', b'\x89PNG': 'image/png', b'RIFF': 'image/webp'}
+    MAX_BYTES = 2 * 1024 * 1024
+
+    image = forms.FileField(required=False, widget=forms.FileInput(attrs={
+        'class': INPUT, 'accept': 'image/jpeg,image/png,image/webp',
+    }))
+    remove = forms.BooleanField(required=False)
+
+    def clean_image(self):
+        upload = self.cleaned_data.get('image')
+        if not upload:
+            return None
+        if upload.size > self.MAX_BYTES:
+            raise forms.ValidationError('Картинка больше 2 МБ.')
+        data = upload.read()
+        content_type = next((t for magic, t in self.TYPES.items() if data.startswith(magic)), None)
+        if content_type is None:
+            raise forms.ValidationError('Нужна картинка JPEG, PNG или WebP.')
+        return data, content_type
+
+
+class SiteSettingsForm(forms.ModelForm):
+    """«Админка → Настройки». Empty fields fall back to .env, shown as placeholders."""
+
+    class Meta:
+        model = SiteSettings
+        fields = ['club_time_zone', 'google_oauth_client_id']
+        widgets = {'google_oauth_client_id': forms.TextInput(attrs={'class': INPUT})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['club_time_zone'].widget = forms.Select(
+            attrs={'class': INPUT},
+            choices=[('', f'Из .env: {settings.CLUB_TIME_ZONE}')] + [(z, z) for z in sorted(zoneinfo.available_timezones())],
+        )
+        if settings.GOOGLE_OAUTH_CLIENT_ID:
+            self.fields['google_oauth_client_id'].widget.attrs['placeholder'] = f'Из .env: {settings.GOOGLE_OAUTH_CLIENT_ID}'
+
+    def clean_club_time_zone(self):
+        zone = self.cleaned_data['club_time_zone']
+        if zone and zone not in zoneinfo.available_timezones():
+            raise forms.ValidationError('Неизвестный часовой пояс.')
+        return zone

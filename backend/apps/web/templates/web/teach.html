@@ -1,0 +1,75 @@
+{% extends "web/base.html" %}
+
+{% block title %}Кабинет учителя · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Кабинет учителя</h1>
+    <p class="mt-1 text-zinc-500">Разговорный клуб, Instagram-бот и видеоуроки.</p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+    <section class="card flex flex-col gap-3 p-4">
+      <div class="flex items-center gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">{% include "web/partials/icon.html" with name="send" class="h-5 w-5" %}</span>
+        <div class="min-w-0">
+          <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Instagram-бот</h2>
+          {% if bot.is_active %}
+            <p class="text-sm text-emerald-600 dark:text-emerald-400">Подключён к @{{ bot.username }}</p>
+          {% else %}
+            <p class="text-sm text-zinc-500">Не подключён</p>
+          {% endif %}
+        </div>
+      </div>
+      <p class="text-sm text-zinc-500">
+        Клиенты пишут в Direct, бот показывает сеансы, записывает и присылает QR-билет.
+        Если мест нет — предлагает сообщить, когда освободится.
+      </p>
+      <a href="{% url 'web:teach-bot' %}" class="btn btn-secondary self-start">{% if bot.is_active %}Настройки бота{% else %}Подключить бота{% endif %}</a>
+    </section>
+
+    <section class="card flex flex-col gap-3 p-4">
+      <div class="flex items-center gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-400/10 dark:text-violet-400">{% include "web/partials/icon.html" with name="monitor" class="h-5 w-5" %}</span>
+        <div class="min-w-0">
+          <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Видеоуроки</h2>
+          <p class="text-sm text-zinc-500">Скоро</p>
+        </div>
+      </div>
+      <p class="text-sm text-zinc-500">
+        Здесь можно будет загружать видео и выбирать, открытое оно для всех или закрытое — только для ваших учеников.
+      </p>
+      <button type="button" class="btn btn-secondary self-start" disabled aria-disabled="true">Добавить видео</button>
+    </section>
+  </div>
+
+  <section class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Разговорный клуб</h2>
+      <a href="{% url 'web:teach-session-create' %}" class="btn btn-primary">Запланировать сеанс</a>
+    </div>
+
+    {% if upcoming %}
+      <ul class="flex flex-col gap-2">
+        {% for s in upcoming %}
+          <li>{% include "web/partials/teach_session_row.html" %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="card p-4 text-zinc-500">Запланированных сеансов нет. Создайте первый — он сразу появится в боте.</p>
+    {% endif %}
+
+    {% if past %}
+      <details class="mt-2">
+        <summary class="cursor-pointer select-none text-sm font-medium text-zinc-600 dark:text-zinc-400">Прошедшие сеансы</summary>
+        <ul class="mt-2 flex flex-col gap-2">
+          {% for s in past %}
+            <li>{% include "web/partials/teach_session_row.html" %}</li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

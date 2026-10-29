@@ -1,0 +1,17 @@
+{# A session in the teacher's list: `s` annotated with taken_count and waiting_count (teach_views._sessions). #}
+<a href="{% url 'web:teach-session' s.pk %}" class="card flex items-center gap-4 px-4 py-3 transition-colors hover:border-indigo-300 dark:hover:border-indigo-500/50">
+  <span class="flex w-14 shrink-0 flex-col items-center rounded-xl bg-indigo-50 py-1.5 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">
+    <span class="text-lg leading-none font-semibold">{{ s.starts_at|date:"d" }}</span>
+    <span class="text-xs">{{ s.starts_at|date:"b" }}</span>
+  </span>
+  <span class="min-w-0 flex-1">
+    <span class="block truncate font-medium text-zinc-900 dark:text-zinc-50">{{ s.title }}</span>
+    <span class="block text-sm text-zinc-500">
+      {{ s.starts_at|date:"D, H:i" }} · {{ s.duration_minutes }} мин{% if s.place %} · {{ s.place|truncatechars:40 }}{% endif %}
+    </span>
+  </span>
+  <span class="shrink-0 text-right text-sm">
+    <span class="block font-medium {% if s.taken_count >= s.seats %}text-red-600 dark:text-red-400{% else %}text-zinc-900 dark:text-zinc-50{% endif %}">{{ s.taken_count }} / {{ s.seats }}</span>
+    {% if s.waiting_count %}<span class="block text-xs text-amber-600 dark:text-amber-400">ждут: {{ s.waiting_count }}</span>{% endif %}
+  </span>
+</a>

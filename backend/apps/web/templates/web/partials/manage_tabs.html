@@ -5,6 +5,7 @@
     <a href="{% url 'web:manage-log' %}" class="pill {% if request.resolver_match.url_name == 'manage-log' %}pill-active{% endif %}">Журнал действий</a>
     {% if user.is_owner %}
       <a href="{% url 'web:manage-database' %}" class="pill {% if request.resolver_match.url_name == 'manage-database' %}pill-active{% endif %}">База данных</a>
+      <a href="{% url 'web:manage-settings' %}" class="pill {% if request.resolver_match.url_name == 'manage-settings' %}pill-active{% endif %}">Настройки</a>
     {% endif %}
   </nav>
 </div>

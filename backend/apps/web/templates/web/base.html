@@ -3,7 +3,7 @@
 <html lang="ru" class="h-full antialiased"{% if appearance %}{% if appearance.mode != "system" %} data-theme="{{ appearance.mode }}"{% endif %}{% if appearance.accent %} data-accent style="--accent: {{ appearance.accent }}"{% endif %}{% if appearance.tint %} data-tint{% endif %}{% endif %}>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Полиглот{% endblock %}</title>
   <meta name="description" content="Учи языки свайпами: слова, грамматика и квизы для начинающих.">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa">
@@ -22,13 +22,17 @@
   <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
   {% block head %}{% endblock %}
 </head>
-<body class="flex min-h-full flex-col bg-zinc-50 dark:bg-black">
+<body class="flex min-h-full flex-col bg-zinc-50 px-[env(safe-area-inset-left)] dark:bg-black">
   {% block navbar %}{% include "web/partials/navbar.html" %}{% endblock %}
 
   {% if messages %}
     <div class="mx-auto w-full max-w-4xl px-4 pt-4">
       {% for message in messages %}
-        <p class="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">{{ message }}</p>
+        {% if message.level_tag == "error" %}
+          <p class="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">{{ message }}</p>
+        {% else %}
+          <p class="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">{{ message }}</p>
+        {% endif %}
       {% endfor %}
     </div>
   {% endif %}

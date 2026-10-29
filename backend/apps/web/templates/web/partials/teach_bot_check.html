@@ -1,0 +1,8 @@
+<p class="flex items-center gap-2 {% if done %}text-emerald-700 dark:text-emerald-400{% else %}text-zinc-500{% endif %}">
+  {% if done %}
+    {% include "web/partials/icon.html" with name="check" class="h-4 w-4" %}
+  {% else %}
+    <span class="h-4 w-4 shrink-0 rounded-full border-2 border-zinc-300 dark:border-zinc-600" aria-hidden="true"></span>
+  {% endif %}
+  {{ label }}
+</p>

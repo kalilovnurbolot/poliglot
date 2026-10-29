@@ -1,0 +1,28 @@
+{% extends "web/base.html" %}
+{% load tz %}
+
+{% block title %}{{ title }} · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
+  <a href="{{ back_url }}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">← Назад</a>
+  <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ title }}</h1>
+
+  <form method="post" class="card flex flex-col gap-4 p-4">
+    {% csrf_token %}
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Тема {{ form.title }}</label>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Начало {{ form.starts_at }}</label>
+      <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Длительность, мин {{ form.duration_minutes }}</label>
+    </div>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Место или ссылка {{ form.place }}</label>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Мест {{ form.seats }}</label>
+    {% get_current_timezone as TIME_ZONE %}
+    <p class="text-xs text-zinc-500">Время — по часовому поясу клуба ({{ TIME_ZONE }}). Записанным клиентам бот сообщит, если время или место изменятся.</p>
+
+    {% include "web/partials/form_errors.html" %}
+
+    <button type="submit" class="btn btn-primary self-start">{{ submit_label }}</button>
+  </form>
+</main>
+{% endblock %}

@@ -1,0 +1,48 @@
+{# Phone-only bottom tab bar: the main sections plus «Ещё» with the rest. Wider screens use the navbar links. #}
+<nav class="tabbar fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] sm:hidden dark:border-zinc-800 dark:bg-zinc-950/95" aria-label="Разделы">
+  <div class="grid grid-cols-5">
+    {% for href, label, icon, tab in nav_links %}
+      {% if tab %}
+        <a href="{{ href }}" {% if nav_section == href %}aria-current="page"{% endif %}
+           class="tabbar-item {% if nav_section == href %}is-active{% endif %}">
+          {% include "web/partials/icon.html" with name=icon class="h-6 w-6" %}
+          <span>{{ tab }}</span>
+        </a>
+      {% endif %}
+    {% endfor %}
+
+    <details class="group" data-sheet>
+      <summary class="tabbar-item list-none [&::-webkit-details-marker]:hidden {% if nav_more_active %}is-active{% endif %}">
+        {% include "web/partials/icon.html" with name="grid" class="h-6 w-6" %}
+        <span>Ещё</span>
+      </summary>
+      <div class="fixed inset-0 -z-10 bg-zinc-950/40 backdrop-blur-[2px]" data-sheet-close></div>
+      <div class="fixed inset-x-0 bottom-0 flex flex-col gap-1 rounded-t-3xl border-t border-zinc-200 bg-white px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+        <span class="mx-auto mb-2 h-1.5 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" aria-hidden="true"></span>
+        {% for href, label, icon, tab in nav_links %}
+          {% if not tab %}
+            <a href="{{ href }}" class="sheet-item {% if nav_section == href %}is-active{% endif %}">
+              {% include "web/partials/icon.html" with name=icon class="h-5 w-5" %} {{ label }}
+            </a>
+          {% endif %}
+        {% endfor %}
+        {% if user.can_teach %}
+          <a href="{% url 'web:teach' %}" class="sheet-item {% if nav_section == '/teach/' %}is-active{% endif %}">
+            {% include "web/partials/icon.html" with name="send" class="h-5 w-5" %} Учителю
+          </a>
+        {% endif %}
+        {% if user.is_staff %}
+          <a href="{% url 'web:manage-users' %}" class="sheet-item {% if nav_section == '/manage/' %}is-active{% endif %}">
+            {% include "web/partials/icon.html" with name="shield" class="h-5 w-5" %} Админка
+          </a>
+        {% endif %}
+        <form method="post" action="{% url 'web:logout' %}" class="mt-1 border-t border-zinc-100 pt-1 dark:border-zinc-800">
+          {% csrf_token %}
+          <button type="submit" class="sheet-item w-full text-red-600 dark:text-red-400">
+            {% include "web/partials/icon.html" with name="logout" class="h-5 w-5" %} Выйти
+          </button>
+        </form>
+      </div>
+    </details>
+  </div>
+</nav>

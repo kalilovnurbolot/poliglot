@@ -1,0 +1,4 @@
+<form method="post" action="{% url 'web:teach-booking-action' b.pk action %}"{% if confirm %} data-confirm="{{ confirm }}"{% endif %}>
+  {% csrf_token %}
+  <button type="submit" class="btn {{ style }} !py-1.5">{{ label }}</button>
+</form>

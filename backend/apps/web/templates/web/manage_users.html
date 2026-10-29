@@ -3,7 +3,7 @@
 {% block title %}Пользователи · Полиглот{% endblock %}
 
 {% block content %}
-<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+<main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
   {% include "web/partials/manage_tabs.html" %}
 
   <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -15,6 +15,7 @@
   <div class="flex flex-wrap gap-2">
     <a href="?{{ search_query }}" class="pill {% if not role %}pill-active{% endif %}">Все · {{ counts.all }}</a>
     <a href="?{{ search_query }}&role=admins" class="pill {% if role == 'admins' %}pill-active{% endif %}">Администраторы · {{ counts.admins }}</a>
+    <a href="?{{ search_query }}&role=teachers" class="pill {% if role == 'teachers' %}pill-active{% endif %}">Учителя · {{ counts.teachers }}</a>
     <a href="?{{ search_query }}&role=blocked" class="pill {% if role == 'blocked' %}pill-active{% endif %}">Заблокированные · {{ counts.blocked }}</a>
   </div>
 
@@ -32,6 +33,9 @@
               <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">Владелец</span>
             {% elif u.is_staff %}
               <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">Админ</span>
+            {% endif %}
+            {% if u.is_teacher %}
+              <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Учитель</span>
             {% endif %}
             {% if not u.is_active %}
               <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">Заблокирован</span>
@@ -52,6 +56,11 @@
               {% include "web/partials/manage_user_button.html" with action="revoke_admin" label="Снять админа" style="btn-secondary" confirm="Снять права администратора с "|add:u.email|add:"?" %}
             {% else %}
               {% include "web/partials/manage_user_button.html" with action="grant_admin" label="Сделать админом" style="btn-secondary" confirm="Сделать "|add:u.email|add:" администратором? Он сможет управлять пользователями и правилами." %}
+            {% endif %}
+            {% if u.is_teacher %}
+              {% include "web/partials/manage_user_button.html" with action="revoke_teacher" label="Снять учителя" style="btn-secondary" confirm="Снять роль учителя с "|add:u.email|add:"? Его сеансы и бот останутся, но кабинет учителя закроется." %}
+            {% else %}
+              {% include "web/partials/manage_user_button.html" with action="grant_teacher" label="Сделать учителем" style="btn-secondary" confirm="" %}
             {% endif %}
             <form method="post" action="{% url 'web:manage-user-reset-link' u.pk %}">
               {% csrf_token %}

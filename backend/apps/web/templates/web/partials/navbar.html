@@ -1,17 +1,17 @@
-<header class="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-black/80">
-  <div class="mx-auto max-w-4xl px-4 py-3">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+<header class="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 pt-[env(safe-area-inset-top)] backdrop-blur-md dark:border-zinc-800 dark:bg-black/80">
+  <div class="mx-auto max-w-4xl px-4 py-2.5 sm:py-3">
+    <div class="flex items-center justify-between gap-3">
       <a href="{% url 'web:home' %}" class="flex shrink-0 items-center gap-1.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
         <span class="text-indigo-600 dark:text-indigo-400">{% include "web/partials/icon.html" with name="globe" class="h-6 w-6" %}</span> Полиглот
       </a>
 
-      <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div class="flex items-center justify-end gap-1 sm:gap-3">
         {% include "web/partials/theme_panel.html" %}
         {% if languages|length > 1 %}
           <form method="post" action="{% url 'web:set-language' %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-            <select name="language" class="input cursor-pointer py-1.5" aria-label="Изучаемый язык" onchange="this.form.submit()">
+            <select name="language" class="input cursor-pointer py-1.5 max-sm:px-2" aria-label="Изучаемый язык" onchange="this.form.submit()">
               {% for l in languages %}
                 <option value="{{ l.code }}" {% if l.code == language %}selected{% endif %}>{{ l.name }}</option>
               {% endfor %}
@@ -20,30 +20,38 @@
         {% endif %}
 
         {% if user.is_authenticated %}
-          <form method="post" action="{% url 'web:logout' %}">
+          {# On phones «Выйти» lives in the tab bar's «Ещё» sheet. #}
+          <form method="post" action="{% url 'web:logout' %}" class="hidden sm:block">
             {% csrf_token %}
             <button type="submit" class="btn btn-ghost !px-0">Выйти</button>
           </form>
         {% else %}
-          <div class="flex gap-2">
-            <a href="{% url 'web:login' %}" class="btn btn-secondary">Войти</a>
-            <a href="{% url 'web:register' %}" class="btn btn-primary">Регистрация</a>
+          {# The landing page has its own big buttons, so phones skip these there. #}
+          <div class="gap-2 {% if request.path == '/' %}hidden sm:flex{% else %}flex{% endif %}">
+            <a href="{% url 'web:login' %}" class="btn btn-secondary max-sm:!px-2.5">Войти</a>
+            <a href="{% url 'web:register' %}" class="btn btn-primary hidden sm:inline-flex">Регистрация</a>
           </div>
         {% endif %}
       </div>
     </div>
 
     {% if user.is_authenticated %}
-      <nav class="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-        {% for href, label in nav_links %}
+      <nav class="mt-2 hidden flex-wrap gap-1 text-sm sm:flex">
+        {% for href, label, icon, tab in nav_links %}
           <a href="{{ href }}"
-             class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors {% if request.path == href %}bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400{% else %}text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100{% endif %}">{{ label }}</a>
+             class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors {% if nav_section == href %}bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400{% else %}text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100{% endif %}">{{ label }}</a>
         {% endfor %}
+        {% if user.can_teach %}
+          <a href="{% url 'web:teach' %}"
+             class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors {% if nav_section == '/teach/' %}bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400{% else %}text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100{% endif %}">Учителю</a>
+        {% endif %}
         {% if user.is_staff %}
           <a href="{% url 'web:manage-users' %}"
-             class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors {% if '/manage/' in request.path %}bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400{% else %}text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100{% endif %}">Админка</a>
+             class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition-colors {% if nav_section == '/manage/' %}bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400{% else %}text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100{% endif %}">Админка</a>
         {% endif %}
       </nav>
     {% endif %}
   </div>
 </header>
+
+{% if user.is_authenticated %}{% include "web/partials/tabbar.html" %}{% endif %}

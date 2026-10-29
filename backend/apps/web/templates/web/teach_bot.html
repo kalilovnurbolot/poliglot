@@ -1,0 +1,115 @@
+{% extends "web/base.html" %}
+
+{% block title %}Instagram-бот · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
+  <a href="{% url 'web:teach' %}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">← Кабинет учителя</a>
+  <div>
+    <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Instagram-бот</h1>
+    <p class="mt-1 text-zinc-500">Бот работает через ваше собственное приложение Meta. Настройка — один раз, около 15 минут.</p>
+  </div>
+
+  {# What is already done, so the teacher sees which step is missing. #}
+  <section class="card flex flex-col gap-2 p-4 text-sm">
+    {% include "web/partials/teach_bot_check.html" with done=bot.webhook_verified_at label="Meta подтвердила адрес webhook" %}
+    {% include "web/partials/teach_bot_check.html" with done=bot.is_active label="Ключи приложения сохранены" %}
+    {% include "web/partials/teach_bot_check.html" with done=bot.last_event_at label="Сообщения из Instagram доходят до сайта" %}
+    {% if bot.is_active %}
+      <p class="mt-1 text-zinc-700 dark:text-zinc-300">Подключён к <span class="font-semibold">@{{ bot.username }}</span>.</p>
+    {% endif %}
+  </section>
+
+  <section class="flex flex-col gap-3">
+    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Ваши данные для приложения Meta</h2>
+    <p class="text-sm text-zinc-500">Мы сгенерировали их только для вас — вставьте в приложение на шаге 4.</p>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      Callback URL
+      <span class="flex gap-2">
+        <input type="text" readonly value="{{ webhook_url }}" class="input min-w-0 flex-1 font-mono text-xs" data-copy-source>
+        <button type="button" class="btn btn-secondary shrink-0" data-copy>Копировать</button>
+      </span>
+    </label>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      Verify token
+      <span class="flex gap-2">
+        <input type="text" readonly value="{{ bot.verify_token }}" class="input min-w-0 flex-1 font-mono text-xs" data-copy-source>
+        <button type="button" class="btn btn-secondary shrink-0" data-copy>Копировать</button>
+      </span>
+    </label>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Как настроить</h2>
+    <ol class="list-decimal flex flex-col gap-2 pl-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+      <li>Сделайте аккаунт Instagram профессиональным: Настройки → Тип аккаунта → «Автор» или «Бизнес».</li>
+      <li>На <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener" class="text-indigo-600 hover:underline dark:text-indigo-400">developers.facebook.com/apps</a> нажмите «Создать приложение», тип — «Бизнес». Добавьте продукт <b>Instagram</b> → «API setup with Instagram login».</li>
+      <li>В разделе «Generate access tokens» добавьте свой аккаунт Instagram и нажмите «Generate token». Скопируйте токен — он понадобится ниже. Там же включите «Webhook subscription» для аккаунта.</li>
+      <li>В разделе «Configure webhooks» вставьте <b>Callback URL</b> и <b>Verify token</b> отсюда, нажмите «Verify and save». Подпишитесь на поля <code>messages</code> и <code>messaging_postbacks</code>. Первая галочка вверху станет зелёной.</li>
+      <li>Скопируйте <b>Instagram app secret</b> (вверху страницы «API setup with Instagram login») и вставьте его вместе с токеном в форму ниже.</li>
+      <li>Переведите приложение в режим <b>Live</b> (переключатель вверху; попросит ссылку на политику конфиденциальности). Без этого бот отвечает только тем, кто добавлен в приложение.</li>
+      <li>Напишите своему аккаунту в Direct с другого аккаунта — бот должен прислать список сеансов.</li>
+    </ol>
+  </section>
+
+  <form method="post" class="card flex flex-col gap-4 p-4">
+    {% csrf_token %}
+    <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">Ключи вашего приложения</h2>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Instagram app secret {{ form.app_secret }}</label>
+    <label class="flex flex-col gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Access token {{ form.access_token }}</label>
+    {% include "web/partials/form_errors.html" %}
+    <button type="submit" class="btn btn-primary self-start">{% if bot.is_active %}Сохранить{% else %}Подключить{% endif %}</button>
+  </form>
+
+  <form method="post" action="{% url 'web:teach-bot-payment-qr' %}" enctype="multipart/form-data" class="card flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
+    {% csrf_token %}
+    {% if bot.payment_qr %}
+      <img src="{% url 'web:club-payment-qr' bot.pk %}?v={{ bot.payment_qr_updated_at|date:'U' }}" alt="QR для оплаты" class="h-40 w-auto self-start rounded-xl border border-zinc-200 dark:border-zinc-800">
+    {% endif %}
+    <div class="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+      <h2 class="font-semibold text-zinc-900 dark:text-zinc-50">QR для оплаты</h2>
+      <p class="text-zinc-500">
+        QR из приложения вашего банка. Бот присылает его после записи на сеанс.
+        {% if not bot.payment_qr %}Пока не загружен — бот присылает только билет.{% endif %}
+      </p>
+      {{ qr_form.image }}
+      {% if bot.payment_qr %}
+        <label class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">{{ qr_form.remove }} Удалить QR</label>
+      {% endif %}
+      <button type="submit" class="btn btn-secondary self-start">Сохранить QR</button>
+    </div>
+  </form>
+
+  {% if bot.access_token %}
+    <form method="post" action="{% url 'web:teach-bot-disconnect' %}" data-confirm="Отключить бота? Он перестанет отвечать в Direct, записи клиентов сохранятся.">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Отключить бота</button>
+    </form>
+  {% endif %}
+
+  <section class="flex flex-col gap-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Что умеет бот</h2>
+    <ul class="list-disc pl-5">
+      <li>На первое сообщение присылает ближайшие сеансы разговорного клуба кнопками.</li>
+      <li>Выбрали сеанс — записывает и присылает QR-билет и ваш QR для оплаты. Дальше разговор идёт про этот сеанс: билет ещё раз, отмена записи.</li>
+      <li>Мест нет — предлагает уведомить и пишет, когда место освободится.</li>
+      <li>Понимает слова «сеансы», «билет», «отменить».</li>
+    </ul>
+    <p>Instagram позволяет боту писать клиенту только в течение 24 часов после его последнего сообщения — уведомление о месте дойдёт, если клиент писал недавно.</p>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const input = button.parentElement.querySelector('[data-copy-source]');
+      input.select();
+      try { await navigator.clipboard.writeText(input.value); } catch { document.execCommand('copy'); }
+      button.textContent = 'Скопировано';
+      setTimeout(() => { button.textContent = 'Копировать'; }, 1500);
+    });
+  });
+</script>
+{% endblock %}

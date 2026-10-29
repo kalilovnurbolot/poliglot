@@ -32,6 +32,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    # Teachers plan talking club sessions and connect an Instagram bot (/teach/).
+    is_teacher = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     # Look of the site (apps/web/appearance.py): {"mode", "accent", "tint"}; empty until
     # the user picks something, so new accounts follow the system theme.
@@ -47,6 +49,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_owner(self):
         """Accounts from ADMIN_EMAILS: always admins, and only they manage database versions."""
         return bool(self.email) and self.email.lower() in settings.ADMIN_EMAILS
+
+    @property
+    def can_teach(self):
+        """Admins get the teacher's page too, so they can try it without the role."""
+        return self.is_teacher or self.is_staff
 
     def save(self, *args, **kwargs):
         if self.email and self.email.lower() in settings.ADMIN_EMAILS:
@@ -78,6 +85,8 @@ class ActivityLog(models.Model):
         GRAMMAR_UNLEARNED = 'grammar_unlearned', 'Снял отметку «изучено»'
         ADMIN_GRANT = 'admin_grant', 'Назначил администратором'
         ADMIN_REVOKE = 'admin_revoke', 'Снял права администратора'
+        TEACHER_GRANT = 'teacher_grant', 'Назначил учителем'
+        TEACHER_REVOKE = 'teacher_revoke', 'Снял роль учителя'
         USER_BLOCK = 'user_block', 'Заблокировал пользователя'
         USER_UNBLOCK = 'user_unblock', 'Разблокировал пользователя'
         PASSWORD_LINK = 'password_link', 'Создал ссылку сброса пароля'
@@ -85,7 +94,12 @@ class ActivityLog(models.Model):
         BACKUP_RESTORE = 'backup_restore', 'Запустил восстановление базы'
         BACKUP_DOWNLOAD = 'backup_download', 'Скачал бэкап базы'
         BACKUP_UPLOAD = 'backup_upload', 'Загрузил бэкап базы'
+        SETTINGS_CHANGE = 'settings_change', 'Изменил настройки сайта'
         MISSION_COMPLETE = 'mission_complete', 'Прошёл миссию'
+        BOT_CONNECT = 'bot_connect', 'Подключил Instagram-бота'
+        BOT_DISCONNECT = 'bot_disconnect', 'Отключил Instagram-бота'
+        CLUB_SESSION_CREATE = 'club_session_create', 'Запланировал сеанс клуба'
+        CLUB_SESSION_DELETE = 'club_session_delete', 'Удалил сеанс клуба'
 
     # The email is kept separately so entries stay readable after a user is deleted.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity')

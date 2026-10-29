@@ -4,7 +4,7 @@
 {% block title %}{{ rule.title }} · Полиглот{% endblock %}
 
 {% block content %}
-<main class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10">
+<main class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:py-10">
   <a href="{% url 'web:grammar' %}?level={{ rule.level }}" class="self-start text-sm text-zinc-500 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">← Все правила</a>
 
   <header class="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-zinc-200 pb-5 dark:border-zinc-800">

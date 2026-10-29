@@ -2,65 +2,78 @@
 
 {% block content %}
 {% if user.is_authenticated %}
-  <main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-10">
+  <main class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-6 sm:gap-6 sm:py-10">
     <div>
-      <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+      <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
         С возвращением, {{ display_name }}!
       </h1>
       <p class="mt-1 text-zinc-500">Чем займёмся сегодня?</p>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <a href="{% url 'web:learn' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="cards" class="h-6 w-6" %}</span>
-        <div>
-          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Учить слова</p>
-          <p class="mt-1 text-sm text-zinc-500">Карточки со свайпами и интервальным повторением.</p>
-        </div>
+    <a href="{% url 'web:learn' %}"
+       class="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-indigo-600 p-5 text-white shadow-lg shadow-indigo-600/20 transition-transform active:scale-[0.98] sm:p-6 dark:bg-indigo-500 dark:shadow-none">
+      <span class="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute -right-4 -bottom-16 h-32 w-32 rounded-full bg-white/10" aria-hidden="true"></span>
+      <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">{% include "web/partials/icon.html" with name="cards" class="h-6 w-6" %}</span>
+      <span class="relative min-w-0 flex-1">
+        <span class="block text-lg font-semibold">Учить слова</span>
+        <span class="block text-sm text-white/80">Карточки со свайпами, прослушивание и времена</span>
+      </span>
+      <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-indigo-600 transition-transform group-hover:translate-x-0.5">{% include "web/partials/icon.html" with name="chevron" class="h-5 w-5" %}</span>
+    </a>
+
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <a href="{% url 'web:quiz' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400">{% include "web/partials/icon.html" with name="target" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Квиз</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Выбор перевода или на слух</span>
       </a>
-      <a href="{% url 'web:quiz' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="target" class="h-6 w-6" %}</span>
-        <div>
-          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Квиз</p>
-          <p class="mt-1 text-sm text-zinc-500">Проверь себя: выбор перевода или на слух.</p>
-        </div>
+      <a href="{% url 'web:missions' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">{% include "web/partials/icon.html" with name="flag" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Миссии</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Сценки голосом с оценкой речи</span>
       </a>
-      <a href="{% url 'web:missions' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="flag" class="h-6 w-6" %}</span>
-        <div>
-          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Миссии</p>
-          <p class="mt-1 text-sm text-zinc-500">Сценки голосом: магазин, кафе — с оценкой речи.</p>
-        </div>
+      <a href="{% url 'web:grammar' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-400">{% include "web/partials/icon.html" with name="book" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Грамматика</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Короткие правила по уровням</span>
       </a>
-      <a href="{% url 'web:grammar' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="book" class="h-6 w-6" %}</span>
-        <div>
-          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Грамматика</p>
-          <p class="mt-1 text-sm text-zinc-500">Короткие правила для начинающих, по уровням.</p>
-        </div>
+      <a href="{% url 'web:words' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">{% include "web/partials/icon.html" with name="pencil" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Мои слова</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Свои слова сразу идут в обучение</span>
       </a>
-      <a href="{% url 'web:words' %}" class="card flex items-start gap-4 p-5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="pencil" class="h-6 w-6" %}</span>
-        <div>
-          <p class="font-semibold text-zinc-900 dark:text-zinc-50">Мои слова</p>
-          <p class="mt-1 text-sm text-zinc-500">Добавляй свои слова — они сразу попадут в обучение.</p>
-        </div>
+      <a href="{% url 'web:verbs' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-400/10 dark:text-violet-400">{% include "web/partials/icon.html" with name="repeat" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Глаголы</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Три формы неправильных глаголов</span>
+      </a>
+      <a href="{% url 'web:dictionary' %}" class="tile">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-400/10 dark:text-teal-400">{% include "web/partials/icon.html" with name="list" class="h-5 w-5" %}</span>
+        <span class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">Словарь</span>
+        <span class="text-xs leading-snug text-zinc-500 sm:text-sm">Все слова по алфавиту</span>
       </a>
     </div>
   </main>
 {% else %}
-  <main class="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+  <main class="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-12 text-center sm:py-16">
     <div class="flex flex-col items-center gap-3">
-      <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">{% include "web/partials/icon.html" with name="globe" class="h-9 w-9" %}</span>
-      <h1 class="text-4xl font-bold text-zinc-900 dark:text-zinc-50">Полиглот</h1>
+      <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 dark:bg-indigo-500">{% include "web/partials/icon.html" with name="globe" class="h-9 w-9" %}</span>
+      <h1 class="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">Полиглот</h1>
       <p class="max-w-sm text-zinc-500">
         Учи английский и немецкий: слова свайпами, короткая грамматика и квизы — просто и без воды.
       </p>
     </div>
 
-    <div class="flex gap-3">
-      <a href="{% url 'web:register' %}" class="btn btn-primary px-6 py-2.5">Начать бесплатно</a>
-      <a href="{% url 'web:login' %}" class="btn btn-secondary px-6 py-2.5">Войти</a>
+    <ul class="grid w-full max-w-md grid-cols-3 gap-2 text-xs font-medium text-zinc-600 sm:text-sm dark:text-zinc-300">
+      <li class="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white px-2 py-3 dark:border-zinc-800 dark:bg-zinc-900"><span class="text-indigo-600 dark:text-indigo-400">{% include "web/partials/icon.html" with name="cards" class="h-5 w-5" %}</span>Слова</li>
+      <li class="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white px-2 py-3 dark:border-zinc-800 dark:bg-zinc-900"><span class="text-indigo-600 dark:text-indigo-400">{% include "web/partials/icon.html" with name="book" class="h-5 w-5" %}</span>Грамматика</li>
+      <li class="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white px-2 py-3 dark:border-zinc-800 dark:bg-zinc-900"><span class="text-indigo-600 dark:text-indigo-400">{% include "web/partials/icon.html" with name="mic" class="h-5 w-5" %}</span>Речь</li>
+    </ul>
+
+    <div class="flex w-full max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+      <a href="{% url 'web:register' %}" class="btn btn-primary min-h-12 px-6 text-base sm:min-h-0 sm:py-2.5 sm:text-sm">Начать бесплатно</a>
+      <a href="{% url 'web:login' %}" class="btn btn-secondary min-h-12 px-6 text-base sm:min-h-0 sm:py-2.5 sm:text-sm">Войти</a>
     </div>
 
     <a href="{% url 'web:grammar' %}" class="text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">

@@ -1,0 +1,35 @@
+{% extends "web/base.html" %}
+
+{% block title %}Билет · Полиглот{% endblock %}
+
+{% block content %}
+<main class="mx-auto flex w-full max-w-sm flex-1 flex-col gap-5 px-4 py-6 sm:py-10">
+  <section class="card flex flex-col items-center gap-4 p-5 text-center">
+    <p class="text-xs font-semibold tracking-widest text-zinc-500 uppercase">Разговорный клуб</p>
+    <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ session.title }}</h1>
+    <p class="text-zinc-600 dark:text-zinc-400">
+      {{ session.starts_at|date:"l, j E, H:i" }}<br>
+      {% if session.place %}{{ session.place|urlize }}{% endif %}
+    </p>
+    <img src="{% url 'web:club-ticket-qr' booking.token %}" alt="QR-код билета" class="h-56 w-56 rounded-xl bg-white p-1" width="224" height="224">
+    <p class="font-medium text-zinc-900 dark:text-zinc-50">{{ booking.client }}</p>
+    {% if booking.status == "attended" %}
+      <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Пришёл ✓</span>
+    {% elif booking.status == "cancelled" %}
+      <span class="rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">Запись отменена</span>
+    {% else %}
+      <span class="rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">Записан</span>
+    {% endif %}
+  </section>
+
+  {% if is_teacher %}
+    {% if booking.status == "booked" %}
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary min-h-12 w-full text-base">Отметить: пришёл</button>
+      </form>
+    {% endif %}
+    <a href="{% url 'web:teach-session' session.pk %}" class="text-center text-sm text-zinc-500 underline underline-offset-2 hover:text-indigo-600">Все записи на сеанс</a>
+  {% endif %}
+</main>
+{% endblock %}

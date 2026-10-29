@@ -4,7 +4,7 @@
 {% block title %}Квиз · Полиглот{% endblock %}
 
 {% block content %}
-<main class="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-4 py-10">
+<main class="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-4 py-6 sm:py-10">
   <div class="flex w-full items-center justify-between gap-3">
     <h1 class="min-w-0 text-xl font-semibold break-words text-zinc-900 dark:text-zinc-50">{{ source }}</h1>
     <a href="{% url 'web:quiz' %}" data-keep-mode class="shrink-0 text-sm text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">← Другие слова</a>

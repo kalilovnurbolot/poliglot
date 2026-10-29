@@ -76,3 +76,14 @@ document.addEventListener("click", async (e) => {
   button.textContent = "Скопировано ✓";
   setTimeout(() => (button.textContent = label), 1500);
 });
+
+// <details data-sheet> is the tab bar's «Ещё» sheet: tapping the backdrop or Escape
+// closes it, and so does coming back to the page with the Back button.
+const closeSheets = () => document.querySelectorAll("details[data-sheet][open]").forEach((sheet) => (sheet.open = false));
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-sheet-close]")) closeSheets();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSheets();
+});
+window.addEventListener("pageshow", closeSheets);
